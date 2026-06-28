@@ -1,0 +1,200 @@
+import { EventEmitter } from 'events';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as crypto from 'crypto';
+import db from './db';
+import settings from './settings';
+import logger from './logger';
+import embeddings from './embeddings';
+import parsers from './parsers';
+import safety from './safety';
+import { chunkText } from './chunk';
+
+/**
+ * rag.ts — local knowledge / retrieval. Indexes ONLY user-approved folders,
+ * skipping sensitive/system paths. Stores chunks + local embeddings in SQLite;
+ * retrieval is brute-force cosine. Fully local — no cloud embeddings.
+ */
+
+const newId = () => crypto.randomUUID();
+const sha = (s: string) => crypto.createHash('sha256').update(s).digest('hex');
+
+class Rag extends EventEmitter {
+  indexing = false;
+  paused = false;
+  current = 0;
+  total = 0;
+  currentFile = '';
+
+  private allowedExts(): string[] {
+    return Array.from(parsers.TEXT_EXT);
+  }
+
+  folders(): string[] {
+    return settings.get().indexedFolders || [];
+  }
+
+  addFolder(folder: string) {
+    if (!folder || !fs.existsSync(folder) || !fs.statSync(folder).isDirectory()) return { ok: false, error: 'Not a valid folder.' };
+    const cur = this.folders();
+    if (cur.includes(folder)) return { ok: false, error: 'Folder already added.' };
+    settings.save({ indexedFolders: [...cur, folder] });
+    logger.info('rag', `Folder approved: ${folder}`);
+    return { ok: true };
+  }
+
+  removeFolder(folder: string) {
+    settings.save({ indexedFolders: this.folders().filter((f) => f !== folder) });
+    const files = db.all<{ id: string }>('SELECT id FROM knowledge_sources WHERE path LIKE ?', [folder + '%']);
+    for (const f of files) db.run('DELETE FROM knowledge_chunks WHERE source_id=?', [f.id]);
+    db.run('DELETE FROM knowledge_sources WHERE path LIKE ?', [folder + '%']);
+    db.saveNow();
+    return { ok: true };
+  }
+
+  /** Recursively collect indexable files under a folder (safety-filtered). */
+  private scan(folder: string): { path: string; name: string; size: number; mtime: number }[] {
+    const allowed = this.allowedExts();
+    const out: any[] = [];
+    const stack = [folder];
+    while (stack.length) {
+      const dir = stack.pop()!;
+      let entries: fs.Dirent[];
+      try {
+        entries = fs.readdirSync(dir, { withFileTypes: true });
+      } catch {
+        continue;
+      }
+      for (const e of entries) {
+        const full = path.join(dir, e.name);
+        if (e.isDirectory()) {
+          if (!safety.isBlockedDir(e.name)) stack.push(full);
+        } else if (e.isFile() && !safety.isBlockedFile(full, allowed)) {
+          let st: fs.Stats;
+          try {
+            st = fs.statSync(full);
+          } catch {
+            continue;
+          }
+          if (st.size > 5 * 1024 * 1024) continue; // skip >5MB
+          out.push({ path: full, name: e.name, size: st.size, mtime: st.mtimeMs });
+        }
+      }
+    }
+    return out;
+  }
+
+  estimate(folder: string) {
+    const files = this.scan(folder);
+    const bytes = files.reduce((a, f) => a + f.size, 0);
+    return { fileCount: files.length, bytes };
+  }
+
+  private emitProgress() {
+    this.emit('progress', this.status());
+  }
+
+  async indexAll(): Promise<{ ok: boolean }> {
+    if (this.indexing) return { ok: false };
+    this.indexing = true;
+    this.paused = false;
+    const s = settings.get();
+    try {
+      for (const folder of this.folders()) {
+        if (this.paused) break;
+        const files = this.scan(folder);
+        this.total = files.length;
+        this.current = 0;
+        this.emitProgress();
+        logger.step('rag', `Indexing ${folder} (${files.length} files)…`);
+        for (const f of files) {
+          if (this.paused) break;
+          this.current++;
+          this.currentFile = f.path;
+          this.emitProgress();
+          try {
+            await this.indexFile(f.path, f.name, f.mtime, s);
+          } catch (e: any) {
+            logger.error('rag', `Skip ${f.name}: ${e.message}`);
+          }
+          if (this.current % 10 === 0) db.saveNow();
+        }
+      }
+      db.saveNow();
+      logger.step('rag', 'Indexing complete.');
+      return { ok: true };
+    } finally {
+      this.indexing = false;
+      this.currentFile = '';
+      this.emitProgress();
+    }
+  }
+
+  private async indexFile(file: string, name: string, mtime: number, s: any) {
+    const text = await parsers.extractText(file);
+    if (!text.trim()) return;
+    const hash = sha(text);
+    const existing = db.get<{ id: string; status: string }>('SELECT id, status FROM knowledge_sources WHERE path=?', [file]);
+    if (existing && existing.status === hash) return; // unchanged
+    if (existing) {
+      db.run('DELETE FROM knowledge_chunks WHERE source_id=?', [existing.id]);
+      db.run('DELETE FROM knowledge_sources WHERE id=?', [existing.id]);
+    }
+    const chunks = chunkText(text, { size: s.chunkSize, overlap: s.chunkOverlap });
+    if (!chunks.length) return;
+    const sourceId = newId();
+    db.run('INSERT INTO knowledge_sources (id,path,name,kind,status,added_at) VALUES (?,?,?,?,?,?)', [sourceId, file, name, 'file', hash, Date.now()]);
+    for (let i = 0; i < chunks.length; i++) {
+      const vec = await embeddings.embed(chunks[i]);
+      db.run('INSERT INTO knowledge_chunks (id,source_id,path,name,chunk_index,content,hash,embedding) VALUES (?,?,?,?,?,?,?,?)', [
+        newId(), sourceId, file, name, i, chunks[i], hash, db.encodeVec(vec),
+      ]);
+    }
+  }
+
+  pause() {
+    this.paused = true;
+    this.emitProgress();
+    return { ok: true };
+  }
+
+  deleteAll() {
+    db.run('DELETE FROM knowledge_chunks');
+    db.run('DELETE FROM knowledge_sources');
+    settings.save({ indexedFolders: [] });
+    db.saveNow();
+    logger.warn('rag', 'Knowledge base deleted.');
+    return { ok: true };
+  }
+
+  /** Retrieve top-K chunks for a query (cosine). */
+  async retrieve(query: string, topK?: number) {
+    const s = settings.get();
+    const k = topK || s.ragTopK || 5;
+    const qv = await embeddings.embed(query);
+    const rows = db.all<any>('SELECT path, name, chunk_index, content, embedding FROM knowledge_chunks');
+    const scored: { r: any; score: number }[] = [];
+    for (const r of rows) {
+      const v = db.decodeVec(r.embedding);
+      if (!v) continue;
+      const score = embeddings.cosine(qv, v);
+      if (score >= (s.ragMinScore || 0)) scored.push({ r, score });
+    }
+    scored.sort((a, b) => b.score - a.score);
+    return scored.slice(0, k).map(({ r, score }) => ({
+      name: r.name, path: r.path, chunkIndex: r.chunk_index, content: r.content, score: Number(score.toFixed(3)),
+    }));
+  }
+
+  status() {
+    const files = db.get<{ c: number }>('SELECT COUNT(*) c FROM knowledge_sources')!.c;
+    const chunks = db.get<{ c: number }>('SELECT COUNT(*) c FROM knowledge_chunks')!.c;
+    const folders = this.folders().map((f) => ({
+      path: f,
+      files: db.get<{ c: number }>('SELECT COUNT(*) c FROM knowledge_sources WHERE path LIKE ?', [f + '%'])!.c,
+    }));
+    return { indexing: this.indexing, paused: this.paused, current: this.current, total: this.total, currentFile: this.currentFile, folders, totals: { files, chunks } };
+  }
+}
+
+export default new Rag();

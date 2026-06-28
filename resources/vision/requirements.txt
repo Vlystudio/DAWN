@@ -1,0 +1,6 @@
+# DAWN Live Vision — local perception sidecar (torch-free).
+# Installed in stages by scripts/setup-vision.ps1 (GPU->CPU + OCR fallbacks).
+numpy>=1.26
+opencv-python-headless>=4.9
+onnxruntime>=1.20
+rapidocr-onnxruntime>=1.3

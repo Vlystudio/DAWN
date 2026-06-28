@@ -1,0 +1,43 @@
+# --- Dependencies & build output ---
+node_modules/
+dist/
+dist-electron/
+release/
+*.log
+.DS_Store
+
+# --- Bundled third-party binaries & models (NOT redistributed here) ---
+# llama.cpp runtime, neural voices, vision models, Python venv — fetch/build these
+# locally via the setup scripts in /scripts and /docs. They are large and/or
+# third-party-licensed, so they are intentionally excluded from the repo.
+resources/runtime/
+resources/kokoro/
+resources/piper/
+resources/models/
+resources/vision/venv/
+resources/vision/models/
+
+# Any model/binary blobs anywhere
+*.gguf
+*.onnx
+*.bin
+*.exe
+*.dll
+*.pyd
+public/models/*.glb
+
+# --- Python caches / venvs ---
+**/venv/
+**/__pycache__/
+*.pyc
+
+# --- 3D / design source blobs ---
+blender/
+
+# --- Secrets & local config (never commit) ---
+.env
+.env.*
+*.pem
+*.key
+*.pfx
+secrets.json

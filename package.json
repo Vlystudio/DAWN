@@ -1,0 +1,110 @@
+{
+  "name": "dawn",
+  "version": "0.1.2",
+  "description": "DAWN — Digitally Autonomous Workspace Node. A local AI assistant with a living, data-driven 3D brain.",
+  "author": "DAWN",
+  "license": "MIT",
+  "private": true,
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "build:main": "tsc -p tsconfig.main.json",
+    "build": "tsc -p tsconfig.main.json && vite build",
+    "start": "cross-env NODE_ENV=production electron .",
+    "dev": "concurrently -k -n VITE,MAIN,ELECTRON -c blue,magenta,green \"vite\" \"tsc -p tsconfig.main.json -w --preserveWatchOutput\" \"wait-on tcp:127.0.0.1:5173 dist-electron/main.js && cross-env NODE_ENV=development electron .\"",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "dist": "npm run build && electron-builder --win",
+    "publish:update": "node scripts/publish-update.mjs"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9",
+    "qrcode.react": "^4.2.0",
+    "sql.js": "^1.14.1"
+  },
+  "devDependencies": {
+    "@react-three/drei": "^9.122.0",
+    "@react-three/fiber": "^8.18.0",
+    "@types/node": "^22.10.5",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "concurrently": "^9.1.2",
+    "cross-env": "^7.0.3",
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8",
+    "framer-motion": "^11.18.2",
+    "lucide-react": "^0.469.0",
+    "postcss": "^8.4.49",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-markdown": "^9.0.1",
+    "rehype-highlight": "^7.0.2",
+    "remark-gfm": "^4.0.1",
+    "tailwind-merge": "^2.6.0",
+    "tailwindcss": "^3.4.17",
+    "three": "^0.161.0",
+    "typescript": "^5.7.3",
+    "vite": "^6.0.7",
+    "wait-on": "^8.0.1",
+    "zustand": "^5.0.3"
+  },
+  "build": {
+    "appId": "com.dawn.app",
+    "productName": "DAWN",
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "**/node_modules/sql.js/dist/sql-wasm.wasm"
+    ],
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "artifactName": "DAWN-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true
+    },
+    "extraResources": [
+      {
+        "from": "resources/runtime",
+        "to": "runtime"
+      },
+      {
+        "from": "resources/piper",
+        "to": "piper"
+      },
+      {
+        "from": "resources/kokoro",
+        "to": "kokoro"
+      },
+      {
+        "from": "resources/vision",
+        "to": "vision",
+        "filter": [
+          "**/*",
+          "!venv",
+          "!venv/**"
+        ]
+      }
+    ],
+    "publish": [
+      {
+        "provider": "generic",
+        "url": "http://127.0.0.1:8788"
+      }
+    ]
+  }
+}

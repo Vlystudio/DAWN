@@ -1,0 +1,46 @@
+# DAWN — Model compatibility & recommendations
+
+DAWN runs **GGUF** models via llama.cpp. One model is loaded at a time; switch in
+**Model Hub** (Task routing → *Use now*) or **Model Manager** (Select + restart).
+
+## Recommended set for an RTX 4080 Super (16 GB VRAM, 64 GB RAM)
+
+| Role | Model | Quant | ~VRAM | Why |
+|---|---|---|---|---|
+| **Fast chat** | Qwen2.5 7B Instruct | Q4_K_M | ~6 GB | Snappy, fully on-GPU. |
+| **Coding** | Qwen2.5 Coder 7B Instruct | Q4_K_M | ~6 GB | Best small local coder. |
+| **Coding (max)** | Qwen2.5 Coder 32B Instruct | Q4_K_M | ~22 GB | Partial GPU offload + RAM; strong. |
+| **General (better)** | Qwen2.5 14B Instruct | Q4_K_M | ~11 GB | Fits fully on the 4080 Super. |
+| **Reasoning** | DeepSeek-R1 Distill Qwen 7B | Q4_K_M | ~6 GB | "Thinking" model. |
+| **Heavyweight** | Qwen2.5 72B Instruct | Q4_K_M | 48 GB+ | Runs partially offloaded to 64 GB RAM (slower). |
+
+Set **GPU layers (-ngl)** high (e.g. 999) for models that fit in VRAM; lower it
+to offload to RAM for larger ones. Model Hub shows **“fits your GPU”** per quant.
+
+## Compatibility matrix
+
+| Family | In catalog | Direct download | License | Notes |
+|---|---|---|---|---|
+| Qwen2.5 (7B/14B/32B-Coder/72B) | ✅ | ✅ (official Qwen GGUF) | Apache-2.0 / Qwen | Recommended default family. |
+| Qwen2.5 Coder (7B/32B) | ✅ | ✅ | Apache-2.0 | Best local coding. |
+| Qwen3 Coder | ✅ | ⚠️ manual | Apache-2.0 | GGUF naming varies — pick a repo. |
+| DeepSeek-R1 Distill (Qwen-7B) | ✅ | ✅ (community GGUF) | MIT (distill) | Reasoning. |
+| DeepSeek-Coder-V2 Lite | ✅ | ✅ | DeepSeek | Efficient MoE coder. |
+| Gemma 2 9B it | ✅ | ✅ (community GGUF) | Gemma | Google open-weight. |
+| Llama 3.1 8B Instruct | ✅ | ✅ (community GGUF) | Llama 3.1 Community | Meta open-weight. |
+| GLM-4 9B chat | ✅ | ⚠️ manual | GLM | Availability varies. |
+
+✅ direct = downloadable without login. ⚠️ manual = shown as **“requires manual
+access”** (open the HF page, accept the license / pick a repo, then **Import**).
+
+> Quantization guide: **Q4_K_M** is the best size/quality default. Use **Q5/Q6**
+> if it still fits VRAM for a quality bump; **Q3** to squeeze a bigger model in.
+
+## Quant cheat-sheet (VRAM to run mostly on GPU)
+
+| Params | Q4_K_M | Q6_K |
+|---|---|---|
+| 7–9B | 5–7 GB | 7–9 GB |
+| 14B | ~10–11 GB | ~13 GB |
+| 32B | ~20–22 GB (partial offload on 16 GB) | ~27 GB |
+| 72B | ~47 GB (CPU+GPU split) | — |

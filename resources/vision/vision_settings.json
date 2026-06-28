@@ -1,0 +1,12 @@
+{
+  "_comment": "Runtime defaults for the DAWN Live Vision sidecar. The Electron app overrides these via /start. Camera is OFF until DAWN starts it. Nothing is uploaded; nothing is saved unless the app passes save=true.",
+  "device": 0,
+  "width": 1280,
+  "height": 720,
+  "fps": 6,
+  "conf": 0.35,
+  "detector": "yolov8n",
+  "providers": ["DmlExecutionProvider", "CPUExecutionProvider"],
+  "save_snapshots": false,
+  "draw_boxes": true
+}

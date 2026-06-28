@@ -1,0 +1,299 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  /* Live accent — rewritten from the brain state by HudBackdrop so the whole
+     HUD shifts colour with what DAWN is actually doing. */
+  --accent: #38bdf8;
+  --accent-rgb: 56, 189, 248;
+  --accent-2: #2dd4bf;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: radial-gradient(1400px 800px at 75% -15%, #122036 0%, #070b14 55%);
+  color: theme('colors.ink');
+  font-family: theme('fontFamily.sans');
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  overflow: hidden;
+}
+
+/* scrollbars */
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #2a3a5a, #1c2740);
+  border-radius: 8px;
+  border: 1px solid rgba(var(--accent-rgb), 0.12);
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(var(--accent-rgb), 0.45);
+}
+::selection {
+  background: rgba(var(--accent-rgb), 0.3);
+  color: #fff;
+}
+
+/* ---- Ambient holographic backdrop (fixed, behind everything) ---- */
+.hud-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+/* Perspective grid that fades toward the horizon. */
+.hud-grid {
+  position: absolute;
+  inset: -10% -10% -10% -10%;
+  background-image: linear-gradient(rgba(var(--accent-rgb), 0.075) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(var(--accent-rgb), 0.075) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(120% 90% at 78% -10%, #000 0%, rgba(0, 0, 0, 0.35) 45%, transparent 75%);
+  -webkit-mask-image: radial-gradient(120% 90% at 78% -10%, #000 0%, rgba(0, 0, 0, 0.35) 45%, transparent 75%);
+  transition: background-image 0.8s ease;
+  animation: gridDrift 32s linear infinite;
+}
+@keyframes gridDrift {
+  to { background-position: 44px 44px; }
+}
+/* Big soft accent glow up top. */
+.hud-glow {
+  position: absolute;
+  top: -36%;
+  right: -8%;
+  width: 70vw;
+  height: 70vw;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(var(--accent-rgb), 0.16) 0%, transparent 60%);
+  filter: blur(30px);
+  transition: background 0.8s ease;
+}
+/* Slow vertical scan beam. */
+.hud-scan {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 180px;
+  background: linear-gradient(180deg, transparent, rgba(var(--accent-rgb), 0.05) 50%, transparent);
+}
+/* Vignette to focus the centre. */
+.hud-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(120% 120% at 50% 40%, transparent 55%, rgba(2, 5, 12, 0.55) 100%);
+}
+
+@layer components {
+  .glass {
+    @apply bg-panel/70 backdrop-blur-xl border border-border rounded-2xl;
+    position: relative;
+    box-shadow: 0 0 0 1px rgba(var(--accent-rgb), 0.06), 0 16px 44px -20px rgba(0, 0, 0, 0.75),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.04);
+    transition: box-shadow 0.6s ease, border-color 0.6s ease;
+  }
+  .glass-soft {
+    @apply bg-panel2/50 backdrop-blur-md border border-border/70 rounded-xl;
+    transition: box-shadow 0.6s ease, border-color 0.6s ease;
+  }
+
+  /* HUD label — mono, spaced, faint. For readouts and section tags. */
+  .hud-label {
+    @apply font-mono uppercase text-faint;
+    font-size: 10px;
+    letter-spacing: 0.16em;
+  }
+
+  /* Accent text + soft glow. */
+  .accent-text {
+    color: var(--accent);
+    text-shadow: 0 0 14px rgba(var(--accent-rgb), 0.5);
+  }
+
+  /* Hairline divider that fades from the accent. */
+  .hud-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(var(--accent-rgb), 0.45), transparent);
+  }
+
+  /* Inputs that glow with the live accent on focus. */
+  .field-accent:focus {
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 0 1px rgba(var(--accent-rgb), 0.3), 0 0 22px -8px rgba(var(--accent-rgb), 0.7);
+  }
+  .console-field {
+    transition: border-color 0.25s ease, box-shadow 0.3s ease;
+  }
+  .console-field:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px rgba(var(--accent-rgb), 0.22), 0 0 28px -10px rgba(var(--accent-rgb), 0.7);
+  }
+
+  /* Unified HUD toggle chip (composer / filters). */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 9999px;
+    padding: 5px 12px;
+    font-family: theme('fontFamily.mono');
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #8294ad;
+    background: rgba(255, 255, 255, 0.015);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    transition: color 0.2s ease, border-color 0.2s ease, box-shadow 0.3s ease, background 0.2s ease;
+  }
+  .chip:hover { color: #e6ecf7; border-color: rgba(var(--accent-rgb), 0.32); }
+  .chip-on {
+    color: var(--accent);
+    background: rgba(var(--accent-rgb), 0.1);
+    border-color: rgba(var(--accent-rgb), 0.5);
+    box-shadow: 0 0 16px -7px rgba(var(--accent-rgb), 0.8), inset 0 0 12px -10px rgba(var(--accent-rgb), 1);
+  }
+
+  /* Section header inside panels: mono label + fading hairline. */
+  .panel-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: theme('fontFamily.mono');
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #5b6982;
+  }
+  .panel-head::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, rgba(var(--accent-rgb), 0.25), transparent);
+  }
+
+  /* A blinking terminal-style prompt glyph. */
+  .console-caret {
+    color: var(--accent);
+    text-shadow: 0 0 8px rgba(var(--accent-rgb), 0.7);
+    animation: pulseSoft 1.4s ease-in-out infinite;
+  }
+
+  /* Corner-bracket frame — adds four small HUD brackets around a panel. */
+  .hud-corners::before,
+  .hud-corners::after {
+    content: '';
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    pointer-events: none;
+    border-color: rgba(var(--accent-rgb), 0.55);
+    z-index: 1;
+  }
+  .hud-corners::before {
+    top: -1px;
+    left: -1px;
+    border-top: 1.5px solid;
+    border-left: 1.5px solid;
+    border-top-left-radius: 6px;
+  }
+  .hud-corners::after {
+    bottom: -1px;
+    right: -1px;
+    border-bottom: 1.5px solid;
+    border-right: 1.5px solid;
+    border-bottom-right-radius: 6px;
+  }
+}
+
+/* Holographic scanlines over the whole app — subtle CRT/HUD feel. */
+.scanlines {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(120, 180, 255, 0.022) 0px,
+    rgba(120, 180, 255, 0.022) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  mix-blend-mode: overlay;
+  opacity: 0.6;
+}
+
+/* markdown + code */
+.markdown {
+  font-size: 14px;
+  line-height: 1.65;
+  user-select: text;
+}
+.markdown p {
+  margin: 0 0 10px;
+}
+.markdown ul,
+.markdown ol {
+  margin: 0 0 10px;
+  padding-left: 22px;
+}
+.markdown a {
+  color: #60a5fa;
+}
+.markdown :not(pre) > code {
+  background: #0b1424;
+  padding: 1px 5px;
+  border-radius: 5px;
+  font-family: theme('fontFamily.mono');
+  font-size: 12.5px;
+}
+.markdown pre {
+  background: linear-gradient(180deg, #070d18, #05080f);
+  border: 1px solid #1f2b45;
+  border-left: 2px solid rgba(var(--accent-rgb), 0.6);
+  border-radius: 10px;
+  padding: 14px 14px 12px;
+  overflow-x: auto;
+  margin: 10px 0;
+  position: relative;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03), 0 0 22px -14px rgba(var(--accent-rgb), 0.6);
+}
+/* little terminal dots in the corner of code blocks */
+.markdown pre::before {
+  content: '';
+  position: absolute;
+  top: 9px;
+  right: 12px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(var(--accent-rgb), 0.7);
+  box-shadow: -10px 0 0 rgba(var(--accent-rgb), 0.35), -20px 0 0 rgba(var(--accent-rgb), 0.18);
+}
+.markdown pre code {
+  font-family: theme('fontFamily.mono');
+  font-size: 12.5px;
+}
+
+/* highlight.js (compact github-dark) */
+.hljs { color: #c9d1d9; }
+.hljs-comment, .hljs-quote { color: #8b949e; font-style: italic; }
+.hljs-keyword, .hljs-selector-tag, .hljs-built_in, .hljs-name, .hljs-tag { color: #ff7b72; }
+.hljs-string, .hljs-title, .hljs-section, .hljs-attribute, .hljs-literal, .hljs-type, .hljs-addition { color: #a5d6ff; }
+.hljs-number, .hljs-symbol, .hljs-bullet, .hljs-meta { color: #79c0ff; }
+.hljs-title.function_ { color: #d2a8ff; }
+.hljs-attr, .hljs-variable, .hljs-property { color: #ffa657; }
+
+.waveform { display: flex; gap: 3px; align-items: flex-end; height: 16px; }
+.waveform span { width: 3px; height: 5px; border-radius: 2px; animation: wf 0.9s ease-in-out infinite; }
+@keyframes wf { 0%,100% { height: 4px; opacity: 0.5; } 50% { height: 14px; opacity: 1; } }
