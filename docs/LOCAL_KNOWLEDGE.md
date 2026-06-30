@@ -85,3 +85,13 @@ a parser genuinely provides them) — and lists exactly which fields are **avail
 available**. DAWN's text/markdown/CSV parsers don't currently extract page numbers or section
 headings, so those are honestly shown as **"not available"** — never faked. If/when a PDF parser
 provides real pages, the citation will include them automatically.
+
+## Stale detection (Check for changes)
+
+The **Check for changes** button (and `rag.validate()`) re-checks each indexed source against the
+filesystem **without reading its contents**: it compares the file's current **mtime** + **size** to
+what was stored at index time (`knowledgeStaleCore`). Verdicts are honest — file changed → **stale**
+(re-index to refresh), file gone → **removed**, file now unsafe (path/type) → **skipped** with reason,
+no stored metadata → left as-is (never fabricated). The safety guard runs first, so an
+unsafe file is never read just to check staleness. Stale sources stay usable in search/workspace
+until you re-index; **removed** sources drop out. System Health reports stale/failed counts.

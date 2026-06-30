@@ -156,6 +156,7 @@ export function registerIpc() {
 
   // --- Local knowledge (RAG) ---
   ipcMain.handle('rag:status', () => rag.status());
+  ipcMain.handle('rag:validate', () => rag.validate());
   ipcMain.handle('rag:pickFolder', async (e) => {
     const win = BrowserWindow.fromWebContents(e.sender);
     const res = await dialog.showOpenDialog(win!, { title: 'Choose a folder to index', properties: ['openDirectory'] });

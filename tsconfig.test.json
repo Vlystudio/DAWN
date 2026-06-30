@@ -74,6 +74,7 @@
     "tests/modelCookbook.test.ts",
     "tests/knowledgeGuard.test.ts",
     "tests/sourceState.test.ts",
-    "tests/citation.test.ts"
+    "tests/citation.test.ts",
+    "tests/knowledgeStale.test.ts"
   ]
 }

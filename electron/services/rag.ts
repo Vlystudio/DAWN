@@ -11,6 +11,7 @@ import safety from './safety';
 import guard from './knowledge/knowledgeGuardCore';
 import sourceState from './knowledge/sourceStateCore';
 import citationCore from './knowledge/citationCore';
+import stale_ from './knowledge/knowledgeStaleCore';
 import { chunkText } from './chunk';
 
 /**
@@ -152,8 +153,8 @@ class Rag extends EventEmitter {
       const sourceId = newId();
       let size = 0; try { size = fs.statSync(file).size; } catch { /* */ }
       const now = Date.now();
-      db.run('INSERT INTO knowledge_sources (id,path,name,kind,status,added_at,state,size_bytes,indexed_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)',
-        [sourceId, file, name, 'file', hash, now, 'indexed', size, now, now]);
+      db.run('INSERT INTO knowledge_sources (id,path,name,kind,status,added_at,state,size_bytes,indexed_at,updated_at,src_mtime) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
+        [sourceId, file, name, 'file', hash, now, 'indexed', size, now, now, mtime || 0]);
       for (let i = 0; i < chunks.length; i++) {
         const vec = await embeddings.embed(chunks[i]);
         db.run('INSERT INTO knowledge_chunks (id,source_id,path,name,chunk_index,content,hash,embedding) VALUES (?,?,?,?,?,?,?,?)', [
@@ -185,6 +186,34 @@ class Rag extends EventEmitter {
     db.saveNow();
     logger.warn('rag', 'Knowledge base deleted.');
     return { ok: true };
+  }
+
+  /**
+   * Re-check indexed sources against the filesystem (no content read): mark stale (changed),
+   * removed (gone), or skipped (path/type/size now unsafe). Safe to call anytime; idempotent.
+   */
+  validate(): { checked: number; stale: number; removed: number; skipped: number } {
+    let checked = 0, stale = 0, removed = 0, skipped = 0;
+    let rows: any[] = [];
+    try { rows = db.all<any>("SELECT id,path,name,size_bytes,src_mtime,state FROM knowledge_sources WHERE state IS NULL OR state IN ('indexed','stale')"); } catch { return { checked, stale, removed, skipped }; }
+    for (const r of rows) {
+      checked++;
+      const now = Date.now();
+      // Re-apply the safety guard before touching the path (a file may have become unsafe).
+      const fv = guard.classifyFile(r.path);
+      if (!fv.index && fv.reason && !/unsupported|no file extension/i.test(fv.reason)) {
+        db.run('UPDATE knowledge_sources SET state=?, skipped_reason=?, updated_at=? WHERE id=?', ['skipped', fv.reason, now, r.id]); skipped++; continue;
+      }
+      let existsNow = false, curMtime: number | null = null, curSize: number | null = null;
+      try { const st = fs.statSync(r.path); existsNow = true; curMtime = st.mtimeMs; curSize = st.size; } catch { existsNow = false; }
+      const verdict = stale_.classifyStale({ existsNow, currentMtime: curMtime, currentSize: curSize, indexedMtime: r.src_mtime, indexedSize: r.size_bytes });
+      if (verdict === 'removed') { db.run('UPDATE knowledge_sources SET state=?, updated_at=? WHERE id=?', ['removed', now, r.id]); removed++; }
+      else if (verdict === 'stale') { db.run('UPDATE knowledge_sources SET state=?, updated_at=? WHERE id=?', ['stale', now, r.id]); stale++; }
+      // 'indexed' / 'unknown' → leave as-is (honest; don't fabricate)
+    }
+    db.saveNow();
+    this.emitProgress();
+    return { checked, stale, removed, skipped };
   }
 
   /** Retrieve top-K chunks for a query (cosine). */

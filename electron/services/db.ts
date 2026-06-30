@@ -349,7 +349,7 @@ function migrate() {
   // the lifecycle. Only columns actually written/read below are added.
   ensureColumns('knowledge_sources', {
     state: 'TEXT', skipped_reason: 'TEXT', error_message: 'TEXT', size_bytes: 'INTEGER',
-    indexed_at: 'INTEGER', updated_at: 'INTEGER',
+    indexed_at: 'INTEGER', updated_at: 'INTEGER', src_mtime: 'INTEGER',
   });
 }
 

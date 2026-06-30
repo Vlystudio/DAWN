@@ -97,6 +97,7 @@ export default function KnowledgeView() {
       <div className="flex flex-wrap gap-2 mb-3">
         <Button variant="primary" onClick={addFolder} disabled={status.indexing}><FolderPlus size={15} /> Add folder</Button>
         <Button variant="default" onClick={() => window.dawn.rag.index()} disabled={status.indexing || status.folders.length === 0}><RefreshCw size={15} /> Re-index</Button>
+        <Button variant="default" onClick={async () => { await window.dawn.rag.validate(); refresh(); }} disabled={status.indexing || status.folders.length === 0}><RefreshCw size={15} /> Check for changes</Button>
         {status.indexing ? <Button variant="default" onClick={() => window.dawn.rag.pause()}><Pause size={15} /> Pause</Button> : null}
         <Button variant="danger" onClick={panic} disabled={status.indexing}><Trash2 size={15} /> Delete all</Button>
       </div>

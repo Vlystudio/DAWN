@@ -71,6 +71,7 @@ export function gatherSignals(): MaturitySignals {
     workspaceLinks: tryNum(() => count('workspace_links')),
     workspaceRegistered: tryNum(() => count('workspace_items', 'ref_id IS NOT NULL')),
     knowledgeFailed: tryNum(() => count('knowledge_sources', "state='failed'")),
+    knowledgeStale: tryNum(() => count('knowledge_sources', "state='stale'")),
     toolsEnabled: !!s.toolsEnabled,
     voiceEnabled: !!s.voiceEnabled, voiceEngine: s.voiceEngine || '',
     companionEnabled: !!s.companionEnabled,

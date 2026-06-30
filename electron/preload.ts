@@ -29,6 +29,7 @@ const api = {
   },
   rag: {
     status: () => ipcRenderer.invoke('rag:status'),
+    validate: () => ipcRenderer.invoke('rag:validate'),
     pickFolder: () => ipcRenderer.invoke('rag:pickFolder'),
     estimate: (f: string) => ipcRenderer.invoke('rag:estimate', f),
     addFolder: (f: string) => ipcRenderer.invoke('rag:addFolder', f),
