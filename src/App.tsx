@@ -21,6 +21,7 @@ import EmailView from './components/EmailView';
 import BackupView from './components/BackupView';
 import DashboardView from './components/DashboardView';
 import FeatureMaturityView from './components/FeatureMaturityView';
+import CommandPalette from './components/CommandPalette';
 import ObsidianView from './components/ObsidianView';
 import NotionView from './components/NotionView';
 import KnowledgeView from './components/KnowledgeView';
@@ -154,6 +155,7 @@ export default function App() {
       <div className="scanlines" aria-hidden />
       {firstRun ? <FirstRunSetup onDone={() => setFirstRun(false)} /> : null}
       <UpdateToast />
+      <CommandPalette onNav={setView} onNewChat={onNewChat} />
       <ApprovalModal />
       {locked ? <LockScreen totpEnabled={!!authStatus?.totpEnabled} onUnlocked={refreshAuth} /> : null}
     </>

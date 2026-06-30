@@ -82,8 +82,8 @@ export function gatherSignals(): MaturitySignals {
     codingWorkspaces: tryNum(() => count('coding_runs')),
     fileAgentEnabled: !!s.fileAgentEnabled,
     updaterConfigured: !!(s.updateFeedDir),
-    commandPalette: false,   // wired in a later loop; reported honestly as MISSING until then
-    globalSearch: false,
+    commandPalette: true,    // global Ctrl/Cmd+K launcher (src/components/CommandPalette.tsx)
+    globalSearch: false,     // wired in a later loop; reported honestly as MISSING until then
     indexedFolders: tryNum(() => Array.isArray(s.indexedFolders) ? s.indexedFolders.length : 0),
   };
 }

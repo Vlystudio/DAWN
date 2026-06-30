@@ -49,9 +49,14 @@ test('evaluateArea reflects real state when configured', () => {
 });
 
 test('unimplemented areas report MISSING honestly; unknown id is MISSING', () => {
-  assert.equal(evaluateArea('palette', { commandPalette: false }).status, 'MISSING');
   assert.equal(evaluateArea('search', { globalSearch: false }).status, 'MISSING');
   assert.equal(evaluateArea('does-not-exist').status, 'MISSING');
+});
+
+test('palette flips MISSING -> COMPLETE once implemented; search stays honest', () => {
+  assert.equal(evaluateArea('palette', { commandPalette: false }).status, 'MISSING');
+  assert.equal(evaluateArea('palette', { commandPalette: true }).status, 'COMPLETE');
+  assert.equal(evaluateArea('search', { globalSearch: false }).status, 'MISSING');
 });
 
 test('evaluateAll covers the whole catalog and summarize is sane', () => {
