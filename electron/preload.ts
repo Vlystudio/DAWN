@@ -381,6 +381,9 @@ const api = {
     check: () => ipcRenderer.invoke('maturity:check'),
     get: (id: string) => ipcRenderer.invoke('maturity:get', id),
   },
+  search: {
+    query: (term: string) => ipcRenderer.invoke('search:query', term),
+  },
   openExternal: (url: string) => ipcRenderer.invoke('open:external', url),
   onNav: (cb: (view: string) => void) => sub('nav', cb),
 };

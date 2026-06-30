@@ -48,6 +48,7 @@ export default function CommandPalette({ onNav, onNewChat }: { onNav: (view: str
   const commands: Cmd[] = useMemo(() => {
     const actions: Cmd[] = [
       { id: 'new-chat', label: 'New chat', group: 'Actions', keywords: 'message ask', run: () => { onNewChat(); close(); } },
+      { id: 'global-search', label: 'Search everything…', group: 'Actions', keywords: 'find global workspace', run: () => { close(); window.dispatchEvent(new Event('dawn:open-search')); } },
       { id: 'health-check', label: 'Run health checks', group: 'Actions', keywords: 'system status maturity', run: () => { (window as any).dawn?.maturity?.check?.().catch(() => {}); go('health'); } },
       { id: 'start-research', label: 'Start research', group: 'Actions', keywords: 'deep search report', run: () => go('research') },
       { id: 'add-document', label: 'New document', group: 'Actions', keywords: 'write doc', run: () => go('documents') },

@@ -22,6 +22,7 @@ import BackupView from './components/BackupView';
 import DashboardView from './components/DashboardView';
 import FeatureMaturityView from './components/FeatureMaturityView';
 import CommandPalette from './components/CommandPalette';
+import GlobalSearch from './components/GlobalSearch';
 import ObsidianView from './components/ObsidianView';
 import NotionView from './components/NotionView';
 import KnowledgeView from './components/KnowledgeView';
@@ -156,6 +157,7 @@ export default function App() {
       {firstRun ? <FirstRunSetup onDone={() => setFirstRun(false)} /> : null}
       <UpdateToast />
       <CommandPalette onNav={setView} onNewChat={onNewChat} />
+      <GlobalSearch onNav={setView} />
       <ApprovalModal />
       {locked ? <LockScreen totpEnabled={!!authStatus?.totpEnabled} onUnlocked={refreshAuth} /> : null}
     </>

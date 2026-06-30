@@ -39,6 +39,7 @@ import vision from './services/vision';
 import companion from './services/companion';
 import fileAgent from './services/fileAgent';
 import featureMaturity from './services/featureMaturity';
+import globalSearch from './services/globalSearch';
 import db from './services/db';
 import * as pathlib from 'path';
 
@@ -569,6 +570,9 @@ export function registerIpc() {
   ipcMain.handle('maturity:list', () => featureMaturity.list());
   ipcMain.handle('maturity:check', () => featureMaturity.check());
   ipcMain.handle('maturity:get', (_e, id) => featureMaturity.get(String(id || '')));
+
+  // --- Global Search (never searches vault/auth/audit; snippets redacted) ---
+  ipcMain.handle('search:query', (_e, term) => globalSearch.query(String(term || '')));
 
   // Misc
   ipcMain.handle('open:external', (_e, url) => shell.openExternal(url));

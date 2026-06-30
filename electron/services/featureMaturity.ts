@@ -83,7 +83,7 @@ export function gatherSignals(): MaturitySignals {
     fileAgentEnabled: !!s.fileAgentEnabled,
     updaterConfigured: !!(s.updateFeedDir),
     commandPalette: true,    // global Ctrl/Cmd+K launcher (src/components/CommandPalette.tsx)
-    globalSearch: false,     // wired in a later loop; reported honestly as MISSING until then
+    globalSearch: true,      // Ctrl/Cmd+Shift+F overlay (src/components/GlobalSearch.tsx)
     indexedFolders: tryNum(() => Array.isArray(s.indexedFolders) ? s.indexedFolders.length : 0),
   };
 }

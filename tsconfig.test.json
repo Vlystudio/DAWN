@@ -63,6 +63,7 @@
     "tests/backup.test.ts",
     "tests/ui.test.ts",
     "tests/contract.test.ts",
-    "tests/featureMaturity.test.ts"
+    "tests/featureMaturity.test.ts",
+    "tests/globalSearch.test.ts"
   ]
 }
