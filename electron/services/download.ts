@@ -2,6 +2,7 @@ import { EventEmitter } from 'events';
 import { net } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as crypto from 'crypto';
 import models from './models';
 import logger from './logger';
 
@@ -29,7 +30,21 @@ interface Job {
   received: number;
   status: Status;
   error?: string;
+  sha256?: string;       // computed after download (final verification)
+  expectedSha?: string;  // optional, from the catalog
+  verified?: boolean;    // size (and sha, if expected) verified
   abort?: () => void;
+}
+
+/** Stream-hash a file with SHA-256 without loading it into memory. */
+function hashFile(file: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const h = crypto.createHash('sha256');
+    const rs = fs.createReadStream(file);
+    rs.on('data', (d) => h.update(d));
+    rs.on('end', () => resolve(h.digest('hex')));
+    rs.on('error', reject);
+  });
 }
 
 class DownloadManager extends EventEmitter {
@@ -37,14 +52,15 @@ class DownloadManager extends EventEmitter {
 
   list() {
     return [...this.jobs.values()].map((j) => ({
-      id: j.id, modelId: j.modelId, filename: j.filename, total: j.total, received: j.received, status: j.status, error: j.error,
+      id: j.id, modelId: j.modelId, filename: j.filename, total: j.total, received: j.received,
+      status: j.status, error: j.error, sha256: j.sha256, verified: j.verified,
     }));
   }
   private emitP() {
     this.emit('progress', this.list());
   }
 
-  async start(modelId: string, family: string, filename: string, url: string) {
+  async start(modelId: string, family: string, filename: string, url: string, sha?: string) {
     const dir = path.join(models.modelsDir(), family);
     fs.mkdirSync(dir, { recursive: true });
     const dest = path.join(dir, filename);
@@ -53,7 +69,7 @@ class DownloadManager extends EventEmitter {
     const id = `${modelId}/${filename}`;
     if (this.jobs.get(id)?.status === 'downloading') return { ok: true, id };
     const received = fs.existsSync(tmp) ? fs.statSync(tmp).size : 0;
-    const job: Job = { id, modelId, family, filename, url, dest, tmp, total: 0, received, status: 'downloading' };
+    const job: Job = { id, modelId, family, filename, url, dest, tmp, total: 0, received, status: 'downloading', expectedSha: sha };
     this.jobs.set(id, job);
     this.run(job);
     return { ok: true, id };
@@ -107,10 +123,28 @@ class DownloadManager extends EventEmitter {
             }
             job.status = 'verifying';
             this.emitP();
-            fs.renameSync(job.tmp, job.dest);
-            job.status = 'done';
-            this.emitP();
-            logger.info('hub', `Installed ${job.filename}`);
+            // Final verification: compute SHA-256 (and check the expected hash if the catalog has one).
+            hashFile(job.tmp).then((sha) => {
+              job.sha256 = sha;
+              if (job.expectedSha && job.expectedSha.toLowerCase() !== sha.toLowerCase()) {
+                job.status = 'error';
+                job.error = `hash mismatch — expected ${job.expectedSha.slice(0, 12)}…, got ${sha.slice(0, 12)}…`;
+                job.verified = false;
+                this.emitP();
+                logger.error('hub', `Hash mismatch for ${job.filename}`);
+                return;
+              }
+              job.verified = true;
+              fs.renameSync(job.tmp, job.dest);
+              job.status = 'done';
+              this.emitP();
+              logger.info('hub', `Installed ${job.filename} (sha256 ${sha.slice(0, 16)}…, ${finalSize} bytes)`);
+            }).catch((e) => {
+              // Hashing failed — still install (size already verified) but flag unverified.
+              job.verified = false;
+              try { fs.renameSync(job.tmp, job.dest); job.status = 'done'; } catch { job.status = 'error'; job.error = e.message; }
+              this.emitP();
+            });
           } catch (e: any) {
             job.status = 'error';
             job.error = e.message;

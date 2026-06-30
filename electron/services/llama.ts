@@ -64,6 +64,28 @@ export async function chatStream(
   return full;
 }
 
+/** Non-streaming /v1/chat/completions — returns the full assistant text. Used by
+ *  background pipelines (Deep Research) that don't need token-by-token streaming. */
+export async function chat(
+  baseUrl: string,
+  messages: ChatMsg[],
+  params: SamplingParams = {},
+  signal?: AbortSignal
+): Promise<string> {
+  const res = await fetch(`${baseUrl}/v1/chat/completions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: 'dawn', messages, stream: false, ...params }),
+    signal,
+  });
+  if (!res.ok) {
+    const t = await res.text().catch(() => '');
+    throw new Error(`/v1/chat/completions returned ${res.status}. ${t}`.trim());
+  }
+  const d: any = await res.json();
+  return d.choices?.[0]?.message?.content || '';
+}
+
 /** GET /v1/models — the loaded model id(s). */
 export async function models(baseUrl: string): Promise<string[]> {
   try {
@@ -73,6 +95,23 @@ export async function models(baseUrl: string): Promise<string[]> {
     return (d.data || []).map((m: any) => m.id);
   } catch {
     return [];
+  }
+}
+
+/** POST /tokenize — accurate token count for a string (llama.cpp native endpoint). */
+export async function tokenize(baseUrl: string, content: string, signal?: AbortSignal): Promise<number | null> {
+  try {
+    const res = await fetch(`${baseUrl}/tokenize`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content }),
+      signal: signal || AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return null;
+    const d: any = await res.json();
+    return Array.isArray(d.tokens) ? d.tokens.length : null;
+  } catch {
+    return null;
   }
 }
 

@@ -1,10 +1,12 @@
 import React from 'react';
 import { Power, Loader2, AlertTriangle } from 'lucide-react';
 import { useRuntimeStore } from '../state/runtimeStore';
+import { useModelName, baseName } from '../lib/modelName';
 
 /** The native DAWN ON/OFF switch — starts/stops the local llama.cpp runtime. */
 export default function PowerSwitch({ onNeedsModel }: { onNeedsModel?: () => void }) {
   const status = useRuntimeStore((s) => s.status);
+  const modelName = useModelName(status.model);
   const on = status.state === 'READY' || status.state === 'GENERATING';
   const busy = status.state === 'STARTING' || status.state === 'LOADING_MODEL' || status.state === 'STOPPING';
 
@@ -41,7 +43,7 @@ export default function PowerSwitch({ onNeedsModel }: { onNeedsModel?: () => voi
         <span>
           {status.state} · {status.backend}
         </span>
-        {status.model ? <span className="truncate max-w-[120px]">{status.model.split(/[\\/]/).pop()}</span> : null}
+        {status.model ? <span className="truncate max-w-[120px]" title={baseName(status.model)}>{modelName}</span> : null}
       </div>
       {!status.installed ? (
         <div className="mt-1 text-[10px] text-neural-amber flex items-start gap-1">

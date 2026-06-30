@@ -5,6 +5,7 @@ import * as crypto from 'crypto';
 import { app, net } from 'electron';
 import logger from './logger';
 import settings from './settings';
+import { credentialFloorReason, isSecretFile as isCredSecretFile } from './credentialFloor';
 
 /**
  * fileAgent.ts — DAWN's "computer access": scanning, organizing, and downloading.
@@ -75,6 +76,7 @@ function isProtectedPath(p: string): boolean {
 
 /** May DAWN READ this path's contents? (metadata listing is always allowed) */
 export function canRead(p: string): boolean {
+  if (credentialFloorReason(p)) return false;   // secrets/credentials never read — even in Full Power
   if (isSecretFile(p)) return false;
   const l = lc(p);
   // Block reading inside credential fragments specifically.
@@ -86,6 +88,17 @@ export function canRead(p: string): boolean {
 /** May DAWN MODIFY (move/delete/rename/create at) this path? */
 export function canModify(p: string): { ok: boolean; reason?: string } {
   const target = norm(p);
+  // The credential/secret FLOOR is absolute — it holds even in Full Power mode.
+  const floor = credentialFloorReason(target);
+  if (floor) return { ok: false, reason: floor };
+
+  // Full Power: edit files ANYWHERE (system folders included, approval-gated at the tool
+  // layer) — only the credential floor above is off-limits, plus a bare drive root.
+  if (settings.get().fullPowerMode) {
+    if (segments(target).length < 2) return { ok: false, reason: 'refusing to modify a drive root' };
+    return { ok: true };
+  }
+
   if (isProtectedPath(target)) return { ok: false, reason: 'protected system/credential area' };
   if (isSecretFile(target)) return { ok: false, reason: 'looks like a secret/key file' };
   const scope = settings.get().fileModifyScope || 'user';

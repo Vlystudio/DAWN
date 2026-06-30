@@ -1,5 +1,5 @@
 import * as path from 'path';
-import { app, BrowserWindow, shell } from 'electron';
+import { app, BrowserWindow, shell, Notification, powerMonitor } from 'electron';
 import { registerIpc } from './ipc';
 import db from './services/db';
 import graph from './services/graph';
@@ -89,6 +89,50 @@ async function bootstrap() {
   download.on('progress', (list: any) => send('hub:progress', list));
   vaultIndex.on('progress', (status: any) => send('vault:progress', status));
   notion.on('progress', (status: any) => send('notion:progress', status));
+  try { require('./services/research/research').default.on('progress', (p: any) => send('research:progress', p)); } catch (e: any) { logger.warn('research', `wiring failed: ${e?.message || e}`); }
+  try { require('./services/bench/compare').default.on('progress', (p: any) => send('compare:progress', p)); } catch (e: any) { logger.warn('compare', `wiring failed: ${e?.message || e}`); }
+  try { require('./services/bench/benchmark').default.on('progress', (p: any) => send('bench:progress', p)); } catch (e: any) { logger.warn('bench', `wiring failed: ${e?.message || e}`); }
+  try { require('./services/tools/toolGateway').default.on('approval', (req: any) => send('tools:approval', req)); } catch (e: any) { logger.warn('tools', `gateway wiring failed: ${e?.message || e}`); }
+  try { require('./services/backup/backup').default.on('event', (ev: any) => { if (ev.kind === 'restore' && ev.status === 'ok') send('backup:restored', {}); }); } catch (e: any) { logger.warn('backup', `wiring failed: ${e?.message || e}`); }
+
+  // Lock on sleep/screen-lock when Secure mode is on (no network; purely local).
+  try {
+    const lockNow = () => {
+      const s = settings.get();
+      if (s.authEnabled && s.lockOnSleep) { try { require('./services/security/auth').default.lock(); send('auth:locked', {}); } catch { /* */ } }
+    };
+    powerMonitor.on('suspend', lockNow);
+    powerMonitor.on('lock-screen', lockNow);
+  } catch (e: any) { logger.warn('auth', `lock-on-sleep wiring failed: ${e?.message || e}`); }
+
+  // Task reminders → local desktop notifications (no network). Polls once a minute.
+  try {
+    const tasks = require('./services/workspace/tasks').default;
+    const checkReminders = () => {
+      if (!settings.get().taskRemindersEnabled || !Notification.isSupported()) return;
+      try {
+        for (const t of tasks.takeDueReminders()) {
+          const n = new Notification({ title: 'DAWN — task reminder', body: t.title || 'A task is due.' });
+          n.on('click', () => { if (win) { win.show(); win.webContents.send('nav', 'tasks'); } });
+          n.show();
+        }
+      } catch (e: any) { logger.warn('tasks', `reminder check: ${e?.message || e}`); }
+    };
+    setInterval(checkReminders, 60000);
+    setTimeout(checkReminders, 8000);
+  } catch (e: any) { logger.warn('tasks', `reminder poller failed: ${e?.message || e}`); }
+
+  // AgentOS runtime manager: forward status changes + auto-start the local API if enabled.
+  try {
+    const agentosRuntime = require('./services/agentosRuntime').default.runtime();
+    agentosRuntime.on('status', (st: any) => send('agentos:status', st));
+    const sx = settings.get();
+    if (sx.agentosEnabled && sx.agentosAutoStart !== false) {
+      agentosRuntime.ensure().catch((e: any) => logger.warn('agentos', `runtime ensure failed: ${e?.message || e}`));
+    }
+  } catch (e: any) {
+    logger.warn('agentos', `runtime manager init failed: ${e?.message || e}`);
+  }
 
   // In-place auto-updates (packaged builds only).
   if (!isDev) {
@@ -183,6 +227,12 @@ app.on('before-quit', () => {
   }
   try {
     require('./services/ollamaBridge').default.stop();
+  } catch {
+    /* ignore */
+  }
+  try {
+    // Only stops the AgentOS API if DAWN started it (never an unknown process).
+    require('./services/agentosRuntime').default.runtime().stop();
   } catch {
     /* ignore */
   }

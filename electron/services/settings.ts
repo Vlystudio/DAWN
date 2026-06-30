@@ -27,6 +27,9 @@ export interface Settings {
   threads: number; // 0 = auto
   gpuLayers: number;
   batchSize: number;
+  ubatchSize: number;     // -ub physical batch (0 = let llama.cpp default)
+  mmap: boolean;          // memory-map weights (default true); false => --no-mmap
+  mlock: boolean;         // lock weights in RAM (--mlock) to avoid paging
   temperature: number;
   topP: number;
   topK: number;
@@ -52,6 +55,13 @@ export interface Settings {
   fileAutonomy: 'confirm' | 'auto' | 'full'; // confirm = preview+approve every change
   downloadEnabled: boolean; // allow DAWN to download files from the internet
   downloadDir: string; // quarantine folder for downloads (default: ~/Downloads/DAWN)
+  softwareInstallEnabled: boolean; // allow DAWN to INSTALL/RUN software (winget or a downloaded installer), approval-gated
+  codingChatTools: boolean; // expose Coding Autopilot commands (run/rollback/diff) in chat
+  fullPowerMode: boolean; // UNRESTRICTED: any command, install anything, edit files anywhere — ask once per kind per session. Floor: credentials/secrets are never read or modified.
+  // --- D.C.D (Dawn Cyber Defense) integration ---
+  dcdEnabled: boolean;        // expose delegate_to_dcd (run scans / operate D.C.D from chat)
+  dcdEnginePath: string;      // optional override of the trusted engine.exe path
+  dcdAllowElevated: boolean;  // allow elevated D.C.D actions (still prompt + Windows UAC)
 
   // --- First run / knowledge ---
   firstRunComplete: boolean;
@@ -106,6 +116,53 @@ export interface Settings {
   aiBridgeEnabled: boolean;    // serve the Ollama-compatible API on 127.0.0.1
   aiBridgePort: number;        // default 11435 (Ollama itself keeps 11434)
 
+  // --- AgentOS delegation (local multi-agent framework; read-only/audit mode) ---
+  agentosEnabled: boolean;     // expose the delegate_to_agents tool in chat
+  agentosApiUrl: string;       // AgentOS FastAPI (preferred transport)
+  agentosDir: string;          // AgentOS install dir (CLI fallback + audit log path)
+  // Per-run approval flow (one-time, least-privilege, expiring grants). Default-safe.
+  agentosApprovalRequired: boolean;     // always require explicit approval for side effects
+  agentosAllowPatchApproval: boolean;   // allow approving a one-time patch/write
+  agentosAllowTestApproval: boolean;    // allow approving a one-time allow-listed test command
+  agentosAllowNetworkApproval: boolean; // network execution stays disabled this phase
+  agentosApprovalTtlSeconds: number;    // grant lifetime
+  agentosMaxApprovedCalls: number;      // calls per grant (1 = single-use)
+  // --- AgentOS runtime manager (DAWN starts/monitors the local API) ---
+  agentosAutoStart: boolean;            // start the AgentOS API when DAWN opens (if down)
+  agentosPythonPath: string;            // optional override; else <dir>/.venv/Scripts/python.exe
+  agentosApiHost: string;               // 127.0.0.1
+  agentosApiPort: number;               // 8099
+  agentosStartupTimeoutMs: number;      // readiness timeout
+  agentosHealthCheckIntervalMs: number; // background re-check interval
+  agentosPreferHttp: boolean;           // prefer HTTP transport over CLI
+  agentosAllowCliFallback: boolean;     // allow CLI fallback when API is down
+  agentosEmbeddingProviderExpected: string; // ollama
+  agentosEmbeddingModelExpected: string;    // nomic-embed-text
+  agentosOllamaUrl: string;             // real Ollama for embeddings (NOT the :11435 chat bridge)
+
+  // --- Deep Research mode ---
+  researchAllowWeb: boolean;        // allow web fetching during research (OFF by default; local-only works offline)
+  researchMaxSources: number;       // 0 = use the depth default
+
+  // --- Workspace (tasks) ---
+  taskRemindersEnabled: boolean;    // local desktop notifications for task reminders
+
+  // --- Tools / Skills registry ---
+  toolApprovalMode: 'strict' | 'balanced' | 'permissive_low';  // default approval behavior
+
+  // --- Email workspace (Part D) ---
+  emailSyncLimit: number;                       // max recent messages fetched per sync (conservative)
+
+  // --- Security / Auth / Vault (Part G) ---
+  authEnabled: boolean;                         // require unlock (Secure mode). Default OFF (local desktop)
+  lanModeEnabled: boolean;                      // LAN exposure intent (server not implemented yet)
+  totpEnabled: boolean;                         // TOTP 2FA active (mirrors auth_config)
+  sessionTimeoutMinutes: number;
+  lockOnSleep: boolean;
+  requireApprovalForHighRiskTools: boolean;
+  requirePasswordForVaultReveal: boolean;
+  requirePasswordForSettingsSecurityChanges: boolean;
+
   // --- Live Vision (webcam perception) ---
   liveVisionEnabled: boolean;       // master switch (camera still OFF until started)
   visionDevice: number;             // camera index
@@ -151,6 +208,9 @@ export const DEFAULTS: Settings = {
   threads: 0,
   gpuLayers: 0,
   batchSize: 512,
+  ubatchSize: 0,
+  mmap: true,
+  mlock: false,
   temperature: 0.7,
   topP: 0.9,
   topK: 40,
@@ -174,6 +234,12 @@ export const DEFAULTS: Settings = {
   fileAutonomy: 'confirm',
   downloadEnabled: false,
   downloadDir: '',
+  softwareInstallEnabled: false,
+  codingChatTools: true,
+  fullPowerMode: false,
+  dcdEnabled: true,
+  dcdEnginePath: '',
+  dcdAllowElevated: true,
 
   firstRunComplete: false,
   knowledgeEnabled: false,
@@ -219,6 +285,44 @@ export const DEFAULTS: Settings = {
 
   aiBridgeEnabled: true,
   aiBridgePort: 11435,
+
+  agentosEnabled: true,
+  agentosApiUrl: 'http://127.0.0.1:8099',
+  agentosDir: 'C:\\Users\\benma\\agentos',
+  agentosApprovalRequired: true,
+  agentosAllowPatchApproval: true,
+  agentosAllowTestApproval: true,
+  agentosAllowNetworkApproval: false,
+  agentosApprovalTtlSeconds: 300,
+  agentosMaxApprovedCalls: 1,
+  agentosAutoStart: true,
+  agentosPythonPath: '',
+  agentosApiHost: '127.0.0.1',
+  agentosApiPort: 8099,
+  agentosStartupTimeoutMs: 15000,
+  agentosHealthCheckIntervalMs: 30000,
+  agentosPreferHttp: true,
+  agentosAllowCliFallback: true,
+  agentosEmbeddingProviderExpected: 'ollama',
+  agentosEmbeddingModelExpected: 'nomic-embed-text',
+  agentosOllamaUrl: 'http://127.0.0.1:11434',
+
+  researchAllowWeb: false,
+  researchMaxSources: 0,
+
+  taskRemindersEnabled: true,
+  toolApprovalMode: 'balanced',
+
+  emailSyncLimit: 50,
+
+  authEnabled: false,
+  lanModeEnabled: false,
+  totpEnabled: false,
+  sessionTimeoutMinutes: 30,
+  lockOnSleep: true,
+  requireApprovalForHighRiskTools: true,
+  requirePasswordForVaultReveal: true,
+  requirePasswordForSettingsSecurityChanges: true,
 
   liveVisionEnabled: false,
   visionDevice: 0,
@@ -307,4 +411,15 @@ export function save(patch: Partial<Settings>): Settings {
   return cache;
 }
 
-export default { get, load, save, DEFAULTS };
+/** Drop the in-memory cache and re-read from disk (used after a restore swaps settings.json). */
+export function reload(): Settings { cache = null; return load(); }
+/** Absolute path of the settings file (for backup/restore staging). */
+export function filePath(): string { return file(); }
+/** Replace ALL settings from a restored object (merged over defaults), persisted atomically. */
+export function importSettings(obj: Partial<Settings>): Settings {
+  cache = { ...DEFAULTS, ...(obj || {}) };
+  try { fs.writeFileSync(tmpFile(), JSON.stringify(cache, null, 2), 'utf-8'); fs.renameSync(tmpFile(), file()); } catch { /* */ }
+  return cache;
+}
+
+export default { get, load, save, reload, filePath, importSettings, DEFAULTS };

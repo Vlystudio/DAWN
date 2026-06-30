@@ -30,11 +30,17 @@ export default function ModelHub() {
   const [installed, setInstalled] = useState<any[]>([]);
   const [downloads, setDownloads] = useState<any[]>([]);
   const [roles, setRoles] = useState<any>({});
+  const [nicks, setNicks] = useState<Record<string, string>>({});
   const refreshRuntime = useRuntimeStore((s) => s.refresh);
 
   const reloadInstalled = () => window.dawn.models.list().then(setInstalled);
   useEffect(() => {
-    window.dawn.hub.catalog().then(setCatalog);
+    window.dawn.hub.catalog().then((c: any[]) => {
+      setCatalog(c);
+      // DAWN nicknames for each catalog file (preserves the real name; adds a function label).
+      const files = c.flatMap((m) => (m.files || []).map((f: any) => f.url.split('/').pop()));
+      window.dawn.optimizer?.names?.(files).then((map: any) => setNicks(map || {})).catch(() => {});
+    });
     window.dawn.hub.hardware().then(setHw);
     window.dawn.hub.roles().then(setRoles);
     window.dawn.hub.downloads().then(setDownloads);
@@ -47,7 +53,17 @@ export default function ModelHub() {
   }, []);
 
   const vram = hw?.gpus?.[0]?.vramGB || 0;
+  const ramGB = hw?.ramGB || 0;
   const isInstalled = (filename: string) => installed.some((m) => m.name === filename);
+
+  // True health label for a candidate file (4 states) — matches the Optimizer's model.
+  function health(f: any): { label: string; cls: string } {
+    const weightsGB = (f.approxBytes || 0) / 1024 ** 3;
+    if (vram > 0 && f.minVramGB <= vram) return { label: 'fits fully on GPU', cls: 'text-neural-green' };
+    if (vram > 0 && weightsGB <= vram + 2) return { label: 'partial GPU offload', cls: 'text-neural-amber' };
+    if (ramGB === 0 || weightsGB <= ramGB) return { label: 'CPU only / slow', cls: 'text-neural-violet' };
+    return { label: 'not recommended', cls: 'text-neural-red' };
+  }
 
   function install(model: any, file: any) {
     window.dawn.hub.download({ modelId: model.id, family: model.family, filename: file.url.split('/').pop(), url: file.url });
@@ -104,6 +120,7 @@ export default function ModelHub() {
                   </div>
                   <div className="h-1.5 bg-panel2 rounded-full overflow-hidden"><div className="h-full bg-neural-cyan transition-all" style={{ width: `${pct}%` }} /></div>
                   {d.error ? <div className="text-[11px] text-neural-red mt-0.5">{d.error}</div> : null}
+                  {d.status === 'done' && d.sha256 ? <div className="text-[10px] text-neural-green mt-0.5 font-mono">{d.verified ? '✓ verified' : 'installed'} · sha256 {d.sha256.slice(0, 16)}…</div> : null}
                 </div>
               );
             })}
@@ -120,7 +137,10 @@ export default function ModelHub() {
               <div key={m.id} className="glass p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="text-sm font-semibold">{m.name} <span className="text-faint font-normal">· {m.params}</span></div>
+                    <div className="text-sm font-semibold flex items-center gap-2 flex-wrap">
+                      {m.name} <span className="text-faint font-normal">· {m.params}</span>
+                      {(() => { const f = bestFile(m); const nick = f && nicks[f.url.split('/').pop()]; return nick ? <span className="text-[11px] px-1.5 py-0.5 rounded-full border border-neural-cyan/40 text-neural-cyan">{nick}</span> : null; })()}
+                    </div>
                     <div className="text-xs text-dim mt-0.5">{m.description}</div>
                     <div className="text-[11px] text-faint mt-1">License: {m.license} · roles: {m.roles.join(', ')}</div>
                   </div>
@@ -139,7 +159,7 @@ export default function ModelHub() {
                           <Download size={14} /> Install
                         </button>
                         <span className="text-xs text-faint">{f.quant} · {fmt(f.approxBytes)}</span>
-                        <span className={`text-[11px] ${fits ? 'text-neural-green' : 'text-neural-amber'}`}>{fits ? 'fits your GPU' : `partial offload (~${f.minVramGB}GB)`}</span>
+                        {(() => { const h = health(f); return <span className={`text-[11px] ${h.cls}`}>{h.label}</span>; })()}
                       </>
                     );
                   })()}

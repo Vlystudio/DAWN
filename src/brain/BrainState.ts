@@ -44,6 +44,8 @@ export const STATE_META: Record<BrainStateName, { label: string; hint: string }>
   RETRIEVING_MEMORY: { label: 'Recalling', hint: 'Pulling from memory…' },
   READING_LOCAL_FILES: { label: 'Reading files', hint: 'Reading your local knowledge…' },
   SEARCHING_WEB: { label: 'Searching', hint: 'Searching the web…' },
+  SYNTHESIZING: { label: 'Synthesizing', hint: 'Weighing sources and reasoning…' },
+  CITING_SOURCES: { label: 'Citing', hint: 'Attaching citations and sources…' },
   INDEXING: { label: 'Indexing', hint: 'Building the knowledge graph…' },
   RESPONDING: { label: 'Responding', hint: 'Composing the answer…' },
   LOOKING: { label: 'Looking', hint: 'Watching the live camera…' },
@@ -59,6 +61,8 @@ export const VISUALS: Record<BrainStateName, BrainVisual> = {
   RETRIEVING_MEMORY:   { color: COLORS.gold,    accent: COLORS.violet,  glow: 0.75, core: 1.1,  pulse: 1.5, ring: 1.2, spin: 0.5,  particleMode: 'inward',   radar: false, flicker: 0,    opacity: 1,    activeCluster: 'memories' },
   READING_LOCAL_FILES: { color: COLORS.gold,    accent: COLORS.teal,    glow: 0.72, core: 1.05, pulse: 1.3, ring: 1.0, spin: 0.4,  particleMode: 'inward',   radar: false, flicker: 0,    opacity: 1,    activeCluster: 'knowledge' },
   SEARCHING_WEB:       { color: COLORS.goldHot, accent: COLORS.cyan,    glow: 0.78, core: 1.05, pulse: 1.4, ring: 1.4, spin: 0.5,  particleMode: 'outward',  radar: true,  flicker: 0,    opacity: 1,    activeCluster: 'web' },
+  SYNTHESIZING:        { color: COLORS.gold,    accent: COLORS.violet,  glow: 0.86, core: 1.3,  pulse: 1.8, ring: 1.5, spin: 0.7,  particleMode: 'inward',   radar: false, flicker: 0,    opacity: 1,    activeCluster: 'web' },
+  CITING_SOURCES:      { color: COLORS.goldHot, accent: COLORS.teal,    glow: 0.8,  core: 1.15, pulse: 1.5, ring: 1.3, spin: 0.5,  particleMode: 'pulse',    radar: false, flicker: 0,    opacity: 1,    activeCluster: 'web' },
   INDEXING:            { color: COLORS.amber,   accent: COLORS.orange,  glow: 0.7,  core: 1.05, pulse: 1.2, ring: 1.0, spin: 0.4,  particleMode: 'build',    radar: false, flicker: 0,    opacity: 1,    activeCluster: 'knowledge' },
   RESPONDING:          { color: COLORS.goldHot, accent: COLORS.orange,  glow: 0.9,  core: 1.45, pulse: 2.5, ring: 1.2, spin: 0.5,  particleMode: 'pulse',    radar: false, flicker: 0,    opacity: 1,    activeCluster: null },
   LOOKING:             { color: COLORS.cyan,    accent: COLORS.goldHot, glow: 0.82, core: 1.1,  pulse: 1.5, ring: 1.6, spin: 0.6,  particleMode: 'outward',  radar: true,  flicker: 0,    opacity: 1,    activeCluster: null },
@@ -117,6 +121,8 @@ export function statusToBrain(status: string): BrainStateName {
   if (/look|camera|vision|watch/.test(s)) return 'LOOKING';
   if (/recall|memor/.test(s)) return 'RETRIEVING_MEMORY';
   if (/read|file|local/.test(s)) return 'READING_LOCAL_FILES';
+  if (/cit(e|ing)|source/.test(s)) return 'CITING_SOURCES';
+  if (/synth|reason|analy/.test(s)) return 'SYNTHESIZING';
   if (/search|web/.test(s)) return 'SEARCHING_WEB';
   if (/index/.test(s)) return 'INDEXING';
   return 'THINKING';

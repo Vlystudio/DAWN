@@ -1,6 +1,6 @@
 {
   "name": "dawn",
-  "version": "0.1.2",
+  "version": "0.2.0-beta.3",
   "description": "DAWN — Digitally Autonomous Workspace Node. A local AI assistant with a living, data-driven 3D brain.",
   "author": "DAWN",
   "license": "MIT",
@@ -12,11 +12,17 @@
     "start": "cross-env NODE_ENV=production electron .",
     "dev": "concurrently -k -n VITE,MAIN,ELECTRON -c blue,magenta,green \"vite\" \"tsc -p tsconfig.main.json -w --preserveWatchOutput\" \"wait-on tcp:127.0.0.1:5173 dist-electron/main.js && cross-env NODE_ENV=development electron .\"",
     "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test:agentos": "tsc -p tsconfig.test.json && node --test dist-test/tests/agentos.test.js dist-test/tests/agentosRuntime.test.js dist-test/tests/install.test.js dist-test/tests/coding.test.js dist-test/tests/codingEngine.test.js dist-test/tests/codingRun.test.js dist-test/tests/credentialFloor.test.js dist-test/tests/dcd.test.js dist-test/tests/optimizer.test.js dist-test/tests/research.test.js dist-test/tests/bench.test.js dist-test/tests/documents.test.js dist-test/tests/workspace.test.js dist-test/tests/calendar.test.js dist-test/tests/promptSecurity.test.js dist-test/tests/tools.test.js dist-test/tests/security.test.js dist-test/tests/email.test.js dist-test/tests/backup.test.js dist-test/tests/ui.test.js dist-test/tests/contract.test.js",
+    "smoke:installed": "node scripts/installed-smoke.mjs",
     "dist": "npm run build && electron-builder --win",
     "publish:update": "node scripts/publish-update.mjs"
   },
   "dependencies": {
+    "adm-zip": "^0.5.18",
     "electron-updater": "^6.8.9",
+    "imapflow": "^1.4.3",
+    "mailparser": "^3.9.12",
+    "nodemailer": "^6.10.1",
     "qrcode.react": "^4.2.0",
     "sql.js": "^1.14.1"
   },

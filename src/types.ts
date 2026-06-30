@@ -3,6 +3,7 @@
 export type BrainStateName =
   | 'OFF' | 'BOOTING' | 'IDLE' | 'LISTENING' | 'THINKING'
   | 'RETRIEVING_MEMORY' | 'READING_LOCAL_FILES' | 'SEARCHING_WEB'
+  | 'SYNTHESIZING' | 'CITING_SOURCES'
   | 'INDEXING' | 'RESPONDING' | 'LOOKING' | 'ERROR';
 
 export interface GraphNode {

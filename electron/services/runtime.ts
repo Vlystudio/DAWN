@@ -135,6 +135,9 @@ class DawnRuntimeManager extends EventEmitter {
     const ngl = s.lowVram || s.performanceMode === 'cpu' ? 0 : s.gpuLayers || (s.performanceMode === 'high' ? 999 : 0);
     args.push('-ngl', String(ngl));
     if (s.batchSize) args.push('-b', String(s.batchSize));
+    if (s.ubatchSize && s.ubatchSize > 0) args.push('-ub', String(s.ubatchSize));
+    if (s.mmap === false) args.push('--no-mmap');
+    if (s.mlock) args.push('--mlock');
     return args;
   }
 

@@ -7,10 +7,14 @@ neural core that reacts in real time, plus a **Brain Explorer** you can fly into
 
 Everything runs on your machine. No chat or files are sent to any cloud service.
 
+> **Private/internal build.** DAWN is a local-first app I build and run for my own use — not a public
+> product, hosted service, or distributed release. There's no account, no telemetry, and no inbound
+> network surface. Setup/build instructions below are for running it locally.
+
 > DAWN appears responsive and "alive" through animation, memory and status
 > changes — but it is **not conscious or sentient**. It's a useful local system.
 
-📚 **Docs:** [SETUP](docs/SETUP.md) · [MODELS](docs/MODELS.md) · [VOICE](docs/VOICE.md) · [TROUBLESHOOTING](docs/TROUBLESHOOTING.md)
+📚 **Docs:** [SETUP](docs/SETUP.md) · [ARCHITECTURE](docs/ARCHITECTURE.md) · [MODELS](docs/MODELS.md) · [MODEL_OPTIMIZER](docs/MODEL_OPTIMIZER.md) · [COMPARE](docs/COMPARE.md) · [RESEARCH](docs/RESEARCH.md) · [WORKSPACE](docs/WORKSPACE.md) · [SKILLS](docs/SKILLS.md) · [SECURITY](docs/SECURITY.md) · [EMAIL](docs/EMAIL.md) · [BACKUP_RESTORE](docs/BACKUP_RESTORE.md) · [VOICE](docs/VOICE.md) · [TROUBLESHOOTING](docs/TROUBLESHOOTING.md) · [RELEASE_CHECKLIST](docs/RELEASE_CHECKLIST.md)
 
 ---
 
@@ -40,12 +44,29 @@ Everything runs on your machine. No chat or files are sent to any cloud service.
 - **Data-driven 3D brain** — `brain_nodes`/`brain_edges` from your real data;
   docked in chat + a **Brain Explorer** with glowing neuron/galaxy nodes,
   per-node breathing, a starfield, and **hover + click** inspection.
-- **In-place auto-updates** (electron-updater) — DAWN updates itself, no reinstall.
+- **In-place auto-updates** (electron-updater, optional) — supported but not wired to any feed; a
+  local build just re-runs the installer.
 - **SQLite** for everything; **Blender** brain generator; **Logs** + **Settings**.
 
-**Next phase (clearly staged):** PDF/DOCX parsing for RAG, semantic embeddings
-via a dedicated GGUF embed model, model benchmarking (tok/s) + update checker in
-Model Hub, and the Kokoro/Piper voice sidecar.
+### Workspace & platform (a unified local AI environment)
+
+- **Home / Dashboard** — status, active model, what needs attention (tasks/events), recent work, and security/backup/email posture, with quick actions.
+- **Models suite** — **Optimizer** (hardware-aware per-model settings + friendly names), **Compare/Arena** (2–4 models head-to-head, blind mode, AI judge + metrics), **Benchmark** ("Best for this PC"). See [MODEL_OPTIMIZER](docs/MODEL_OPTIMIZER.md), [COMPARE](docs/COMPARE.md).
+- **Deep Research** — plan → search/retrieve → summarize → contradictions → cited report; web off by default. See [RESEARCH](docs/RESEARCH.md).
+- **Workspace** — **Documents** (markdown editor + AI actions + versions), **Notes** (AI summarize / convert-to-task / smart-link), **Tasks** (due/priority/recurrence/reminders/"Ask DAWN"), **Calendar** (.ics, tasks overlaid). See [WORKSPACE](docs/WORKSPACE.md).
+- **Email** — local IMAP/SMTP; credentials in the Vault; firewalled AI summaries/drafts; **send only after explicit approval**. See [EMAIL](docs/EMAIL.md).
+- **Skills + Tool Registry** — every capability is a typed tool with risk/permission/approval + audit; user **Skills** are scoped to allowed tools. See [SKILLS](docs/SKILLS.md).
+- **PromptSecurity** — a central firewall: untrusted content (RAG/web/notes/docs/email/tool output) is wrapped as evidence and can **never** become system instructions.
+- **Security / Vault / Auth / 2FA** — optional Secure mode (scrypt password, in-memory session, TOTP + backup codes, app lock), an **AES-256-GCM Vault** (OS-keychain + password-wrapped key). See [SECURITY](docs/SECURITY.md).
+- **Backup / Restore** — verified `.dawnbackup` archives, encrypted vault included, **pre-restore safety snapshot** + rollback, critical-approval restore. See [BACKUP_RESTORE](docs/BACKUP_RESTORE.md).
+
+**Privacy & security principles:** local-first (no cloud, no telemetry); secrets are
+never stored in plaintext, never logged, never put into model prompts, never in
+backups or the brain graph; risky tools require explicit approval; everything is
+auditable. See [SECURITY](docs/SECURITY.md) and [ARCHITECTURE](docs/ARCHITECTURE.md).
+
+**Build & test:** `npm run build` (main `tsc` + Vite renderer) · `npm run test:agentos`
+(244 tests). See [RELEASE_CHECKLIST](docs/RELEASE_CHECKLIST.md).
 
 ---
 

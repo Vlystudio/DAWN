@@ -1,32 +1,53 @@
 import React, { useEffect, useState } from 'react';
-import { MessageSquare, Network, Brain, Database, ScrollText, Settings as SettingsIcon, Plus, Search, Pin, X, HardDrive, DownloadCloud, BookMarked, NotebookText, Eye } from 'lucide-react';
+import { MessageSquare, Network, Brain, Database, ScrollText, Settings as SettingsIcon, Plus, Search, Pin, X, HardDrive, DownloadCloud, BookMarked, NotebookText, Eye, Library, Code2, Gauge, Telescope, Swords, FileText, StickyNote, CheckSquare, CalendarDays, Sparkles, ShieldCheck, Mail, Archive, LayoutDashboard } from 'lucide-react';
 import { cn } from '../lib/cn';
 import PowerSwitch from './PowerSwitch';
 import { StatusDot } from './hud';
 import { useBrainStore } from '../state/brainStore';
 import { metaFor } from '../brain/BrainState';
+import { useModelName } from '../lib/modelName';
 
-// Grouped so the rail reads as a few tidy clusters instead of one long list.
-const NAV_GROUPS: { key: string; label: string; icon: any }[][] = [
-  [
+// Grouped + labeled so the rail reads as a few tidy clusters instead of one long list.
+const NAV_GROUPS: { title?: string; items: { key: string; label: string; icon: any }[] }[] = [
+  { items: [{ key: 'dashboard', label: 'Home', icon: LayoutDashboard }] },
+  { title: 'Core', items: [
     { key: 'chat', label: 'Chat', icon: MessageSquare },
     { key: 'explorer', label: 'Brain', icon: Network },
+    { key: 'research', label: 'Research', icon: Telescope },
+    { key: 'coding', label: 'Coding', icon: Code2 },
     { key: 'vision', label: 'Live Vision', icon: Eye },
-  ],
-  [
+  ] },
+  { title: 'Models', items: [
+    { key: 'hub', label: 'Model Hub', icon: DownloadCloud },
+    { key: 'optimizer', label: 'Optimizer', icon: Gauge },
+    { key: 'compare', label: 'Compare', icon: Swords },
+    { key: 'models', label: 'Models', icon: HardDrive },
+  ] },
+  { title: 'Workspace', items: [
+    { key: 'documents', label: 'Documents', icon: FileText },
+    { key: 'notes', label: 'Notes', icon: StickyNote },
+    { key: 'tasks', label: 'Tasks', icon: CheckSquare },
+    { key: 'calendar', label: 'Calendar', icon: CalendarDays },
+    { key: 'email', label: 'Email', icon: Mail },
+  ] },
+  { title: 'Knowledge', items: [
     { key: 'memory', label: 'Memory', icon: Brain },
     { key: 'obsidian', label: 'Obsidian', icon: BookMarked },
     { key: 'notion', label: 'Notion', icon: NotebookText },
     { key: 'knowledge', label: 'Knowledge', icon: Database },
-  ],
-  [
-    { key: 'hub', label: 'Model Hub', icon: DownloadCloud },
-    { key: 'models', label: 'Models', icon: HardDrive },
-  ],
-  [
+    { key: 'localknowledge', label: 'Local Knowledge', icon: Library },
+  ] },
+  { title: 'Automation', items: [
+    { key: 'skills', label: 'Skills', icon: Sparkles },
+  ] },
+  { title: 'Security', items: [
+    { key: 'security', label: 'Security', icon: ShieldCheck },
+    { key: 'backup', label: 'Backup', icon: Archive },
+  ] },
+  { title: 'System', items: [
     { key: 'logs', label: 'Logs', icon: ScrollText },
     { key: 'settings', label: 'Settings', icon: SettingsIcon },
-  ],
+  ] },
 ];
 
 /** Left rail: HUD brand + reactor, primary navigation, conversations, live status. */
@@ -48,6 +69,7 @@ export default function Sidebar({
   const brain = useBrainStore((s) => s.mock ?? s.state);
   const online = brain !== 'OFF';
   const [model, setModel] = useState('');
+  const friendlyModel = useModelName(model);
   useEffect(() => {
     const apply = (st: any) => setModel(st?.model ? st.model.split(/[\\/]/).pop() : '');
     window.dawn.runtime.status().then(apply);
@@ -82,27 +104,32 @@ export default function Sidebar({
         <PowerSwitch onNeedsModel={onNeedsModel} />
       </div>
 
-      <nav className="px-2">
+      {/* Scrollable middle: nav + new chat + conversations live in one scroll region so every
+          nav item stays reachable on short windows (brand/power stay fixed above, System below). */}
+      <div className="flex-1 min-h-0 overflow-y-auto">
+      <nav className="px-2" aria-label="Primary">
         {NAV_GROUPS.map((group, gi) => (
-          <div key={gi}>
-            {gi > 0 ? <div className="mx-3 my-1.5 h-px bg-border/60" /> : null}
+          <div key={gi} className={gi > 0 ? 'mt-1.5' : ''}>
+            {group.title ? <div className="hud-label px-3 pt-1.5 pb-0.5 text-faint/70">{group.title}</div> : null}
             <div className="space-y-0.5">
-              {group.map((n) => {
+              {group.items.map((n) => {
                 const Icon = n.icon;
                 const active = view === n.key;
                 return (
                   <button
                     key={n.key}
                     onClick={() => setView(n.key)}
+                    aria-label={n.label}
+                    aria-current={active ? 'page' : undefined}
                     className={cn(
-                      'group relative w-full flex items-center gap-3 px-3 py-1.5 rounded-lg text-[13px] transition-colors',
+                      'group relative w-full flex items-center gap-3 px-3 py-1.5 rounded-lg text-[13px] transition-colors focus-visible:ring-1 focus-visible:ring-[var(--accent)] outline-none',
                       active ? 'text-ink bg-panel2/70' : 'text-dim hover:text-ink hover:bg-panel/50'
                     )}
                   >
                     {active ? (
-                      <span className="absolute left-0 top-1 bottom-1 w-[2px] rounded-full" style={{ background: 'var(--accent)', boxShadow: '0 0 8px var(--accent)' }} />
+                      <span className="absolute left-0 top-1 bottom-1 w-[2px] rounded-full" style={{ background: 'var(--accent)', boxShadow: '0 0 8px var(--accent)' }} aria-hidden />
                     ) : null}
-                    <Icon size={15} className={active ? '' : 'group-hover:text-ink'} style={active ? { color: 'var(--accent)' } : undefined} />
+                    <Icon size={15} className={active ? '' : 'group-hover:text-ink'} style={active ? { color: 'var(--accent)' } : undefined} aria-hidden />
                     {n.label}
                   </button>
                 );
@@ -131,7 +158,7 @@ export default function Sidebar({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-2 mt-2 space-y-0.5">
+      <div className="px-2 mt-2 space-y-0.5">
         {pinned.length > 0 && <div className="hud-label px-2 pt-2 pb-1">Pinned</div>}
         {pinned.map((c: any) => (
           <ConvItem key={c.id} c={c} active={c.id === selectedId} onSelect={onSelectConv} onDelete={onDeleteConv} />
@@ -141,6 +168,7 @@ export default function Sidebar({
           <ConvItem key={c.id} c={c} active={c.id === selectedId} onSelect={onSelectConv} onDelete={onDeleteConv} />
         ))}
         {convs.length === 0 ? <div className="text-xs text-faint text-center py-6">No conversations yet.</div> : null}
+      </div>
       </div>
 
       {/* System status panel */}
@@ -156,7 +184,7 @@ export default function Sidebar({
           </div>
           <div className="flex items-center justify-between text-[10px] font-mono gap-2">
             <span className="text-faint tracking-wider">MODEL</span>
-            <span className="truncate max-w-[130px] text-dim" title={model || 'no model'}>{model || '—'}</span>
+            <span className="truncate max-w-[130px] text-dim" title={model || 'no model'}>{model ? friendlyModel : '—'}</span>
           </div>
           <div className="flex items-center gap-1.5 text-[9px] text-faint pt-0.5 font-mono tracking-wider">
             <span className="inline-block w-1 h-1 rounded-full bg-neural-green" /> LOCAL · NOTHING LEAVES YOUR PC

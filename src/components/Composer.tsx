@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Send, Square, Paperclip, Mic, Brain, FileText, Terminal } from 'lucide-react';
 import { Button } from '../ui/button';
 import { useBrainStore } from '../state/brainStore';
+import { resolveNames, baseName } from '../lib/modelName';
 
 /**
  * Composer — message input with the loaded-model indicator, Memory / Local
@@ -33,12 +34,18 @@ export default function Composer({
 }) {
   const [text, setText] = useState('');
   const [toolsOn, setToolsOn] = useState(false);
+  const [nameMap, setNameMap] = useState<Record<string, string>>({});
   const setBrain = useBrainStore((s) => s.setBrain);
   const current = useBrainStore((s) => s.state);
 
   useEffect(() => {
     window.dawn.settings.get().then((s: any) => setToolsOn(!!s.toolsEnabled));
   }, []);
+
+  // Resolve friendly DAWN names for the model dropdown (cached).
+  useEffect(() => {
+    if (models.length) resolveNames(models.map((m) => m.path)).then(setNameMap);
+  }, [models]);
 
   const send = () => {
     const t = text.trim();
@@ -74,7 +81,7 @@ export default function Composer({
           >
             {models.length === 0 ? <option value="">No models — install in Model Hub</option> : null}
             {!loadedPath && models.length ? <option value="">Pick a model…</option> : null}
-            {models.map((m) => <option key={m.path} value={m.path}>{m.name}</option>)}
+            {models.map((m) => <option key={m.path} value={m.path} title={m.name}>{nameMap[baseName(m.path)] || m.name}</option>)}
           </select>
         </div>
         {switching ? <span className="text-[11px] text-neural-amber animate-pulseSoft font-mono">loading…</span> : null}

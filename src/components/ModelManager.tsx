@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { FolderOpen, Plus, Trash2, CheckCircle2, AlertTriangle, HardDrive } from 'lucide-react';
+import { FolderOpen, Plus, Trash2, CheckCircle2, AlertTriangle, HardDrive, Gauge, Zap, Loader2, Trophy } from 'lucide-react';
 import { Button } from '../ui/button';
 import { useRuntimeStore } from '../state/runtimeStore';
 
@@ -16,13 +16,33 @@ function fmtBytes(n: number) {
 export default function ModelManager() {
   const [models, setModels] = useState<any[]>([]);
   const [ram, setRam] = useState(0);
+  const [benches, setBenches] = useState<Record<string, any>>({});
+  const [best, setBest] = useState<any[]>([]);
+  const [benching, setBenching] = useState('');
   const refresh = useRuntimeStore((s) => s.refresh);
 
+  const loadBench = () => {
+    window.dawn.bench.history().then((rows: any[]) => {
+      const byModel: Record<string, any> = {};
+      for (const r of rows) if (!byModel[r.model_path]) byModel[r.model_path] = r; // newest first
+      setBenches(byModel);
+    });
+    window.dawn.bench.best().then(setBest);
+  };
   const load = () => {
     window.dawn.models.list().then(setModels);
     window.dawn.models.systemRam().then(setRam);
+    loadBench();
   };
   useEffect(load, []);
+
+  async function benchmark(p: string) {
+    setBenching(p);
+    await window.dawn.bench.run(p);
+    setBenching('');
+    loadBench();
+    refresh();
+  }
 
   async function importModel() {
     const r = await window.dawn.models.import();
@@ -64,6 +84,7 @@ export default function ModelManager() {
         ) : (
           models.map((m) => {
             const tooBig = ram > 0 && m.estRamGB > ram;
+            const b = benches[m.path];
             return (
               <div key={m.path} className={`glass p-4 flex items-center gap-4 ${m.loaded ? 'ring-1 ring-neural-green/50' : ''}`}>
                 <div className="flex-1 min-w-0">
@@ -77,7 +98,17 @@ export default function ModelManager() {
                     <span>~{m.estRamGB} GB RAM</span>
                     {tooBig ? <span className="text-neural-amber flex items-center gap-1"><AlertTriangle size={11} /> may exceed your RAM</span> : null}
                   </div>
+                  {b ? (
+                    <div className="text-[11px] mt-1 flex flex-wrap gap-x-3">
+                      {b.status === 'ok'
+                        ? <span className="text-neural-cyan inline-flex items-center gap-1"><Zap size={11} /> {b.tokens_per_sec} tok/s · load {(b.load_ms / 1000).toFixed(1)}s · {b.backend} · max ctx ~{(b.est_max_context / 1024).toFixed(0)}k</span>
+                        : <span className="text-neural-red inline-flex items-center gap-1"><AlertTriangle size={11} /> {b.oom ? 'OOM' : 'benchmark failed'}: {b.error}</span>}
+                    </div>
+                  ) : null}
                 </div>
+                <button onClick={() => benchmark(m.path)} disabled={!!benching} title="Benchmark this model on your PC" className="text-xs px-2.5 py-1.5 rounded-lg border border-border text-dim hover:text-ink inline-flex items-center gap-1 disabled:opacity-40">
+                  {benching === m.path ? <Loader2 size={13} className="animate-spin" /> : <Gauge size={13} />} Benchmark
+                </button>
                 {m.loaded ? (
                   <span className="text-xs text-neural-green">Selected</span>
                 ) : (
@@ -90,9 +121,25 @@ export default function ModelManager() {
         )}
       </div>
 
+      {best.filter((b) => b.status === 'ok').length ? (
+        <div className="glass p-4 mt-4">
+          <div className="text-sm font-semibold mb-2 flex items-center gap-1.5"><Trophy size={15} className="text-neural-amber" /> Best for this PC</div>
+          <div className="space-y-1.5">
+            {best.slice(0, 6).map((b) => (
+              <div key={b.model_path} className="flex items-center gap-2 text-xs">
+                <span className="w-5 text-faint font-mono">#{b.rank}</span>
+                <span className="flex-1 truncate text-dim">{b.model_name}</span>
+                <span className={b.status === 'ok' ? 'text-neural-cyan' : 'text-neural-red'}>{b.note}</span>
+              </div>
+            ))}
+          </div>
+          <p className="text-[11px] text-faint mt-2">Ranked by your benchmark runs (throughput, load time, backend). Benchmark more models to complete the ranking.</p>
+        </div>
+      ) : null}
+
       <div className="glass-soft p-3 mt-4 text-xs text-faint">
         Selecting a model <b>loads it immediately</b> — DAWN swaps it in the background, no power toggle or restart needed.
-        You can also switch right from the model dropdown in Chat. Browse &amp; download more in the Model Hub.
+        <b> Benchmark</b> loads a model, times a fixed prompt, then restores your current chat model. Browse &amp; download more in the Model Hub.
       </div>
     </div>
   );

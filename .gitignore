@@ -41,3 +41,10 @@ blender/
 *.key
 *.pfx
 secrets.json
+
+# AgentOS integration test build output
+dist-test/
+
+# --- Generated reports & sibling-project release output (never commit) ---
+installed-smoke-report.json
+release_dcd/

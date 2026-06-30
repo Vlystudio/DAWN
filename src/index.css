@@ -297,3 +297,21 @@ body {
 .waveform { display: flex; gap: 3px; align-items: flex-end; height: 16px; }
 .waveform span { width: 3px; height: 5px; border-radius: 2px; animation: wf 0.9s ease-in-out infinite; }
 @keyframes wf { 0%,100% { height: 4px; opacity: 0.5; } 50% { height: 14px; opacity: 1; } }
+
+/* --- Accessibility (Part I) --------------------------------------------- */
+/* Keyboard focus: a clear, consistent ring everywhere. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-radius: 4px;
+}
+/* Respect the OS "reduce motion" preference — calm the brain + all animations. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .scanlines, .waveform span { animation: none !important; }
+}

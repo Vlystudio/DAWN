@@ -34,6 +34,10 @@ export const CLUSTERS: Record<string, { dir: [number, number, number]; color: st
   web: { dir: [0.1, 0.95, -0.2], color: 'cyan', title: 'Web Research' },
   vault: { dir: [0.5, -0.3, 0.82], color: 'orange', title: 'Obsidian Vault' },
   notion: { dir: [-0.8, 0.1, -0.55], color: 'slate', title: 'Notion' },
+  email: { dir: [0.6, 0.55, -0.6], color: 'blue', title: 'Email' },
+  documents: { dir: [-0.2, 0.7, 0.75], color: 'green', title: 'Documents' },
+  notes: { dir: [0.85, -0.55, -0.2], color: 'violet', title: 'Notes' },
+  tasks: { dir: [-0.45, 0.85, -0.3], color: 'amber', title: 'Tasks' },
 };
 
 const CLUSTER_RADIUS = 3.2;
@@ -90,6 +94,9 @@ export function rebuild() {
   NODES = [];
   EDGES = [];
   const s = settings.get();
+  // Source ids with a recent medium/high prompt-security event (subtle brain warning flag).
+  let secFlagged = new Set<string>();
+  try { secFlagged = new Set(db.all("SELECT DISTINCT source_id FROM prompt_security_events WHERE severity IN ('medium','high') AND source_id IS NOT NULL").map((r: any) => r.source_id)); } catch { /* */ }
 
   // Core
   addNode({ id: 'core', type: 'system_event', title: 'DAWN Core', summary: 'Active reasoning center', color_group: 'cyan', importance: 1, position_x: 0, position_y: 0, position_z: 0 });
@@ -245,12 +252,211 @@ export function rebuild() {
   }
 
   // Web research (from used sources, if any)
-  for (const ws of db.all('SELECT * FROM research_sources ORDER BY used_at DESC LIMIT 100')) {
+  for (const ws of db.all('SELECT * FROM research_sources ORDER BY used_at DESC LIMIT 150')) {
     const id = `web:${ws.id}`;
     const p = positionFor('web', id);
-    addNode({ id, type: 'web_source', title: ws.title || ws.domain, summary: ws.url, source_id: ws.id, color_group: 'cyan', confidence: ws.reliability ?? 0.5, position_x: p[0], position_y: p[1], position_z: p[2] });
+    addNode({ id, type: 'web_source', title: ws.title || ws.domain || 'Source', summary: ws.url || ws.local_ref, source_id: ws.id, color_group: 'cyan', confidence: ws.reliability ?? 0.5, position_x: p[0], position_y: p[1], position_z: p[2], metadata_json: JSON.stringify({ source_type: ws.source_type, reliability: ws.reliability, run_id: ws.run_id }) });
     addEdge('cluster:web', id, 'contains', 0.4);
   }
+
+  // Deep Research runs + reports — each run grows the brain: run → sources,
+  // report → run, run → core. Source nodes are created above (research_sources).
+  try {
+    const runs = db.all('SELECT * FROM research_runs ORDER BY created_at DESC LIMIT 60');
+    for (const r of runs) {
+      const id = `research:${r.id}`;
+      const p = positionFor('web', id);
+      addNode({
+        id, type: 'research_run', title: truncate(r.question || 'Research', 50), summary: r.question, source_id: r.id,
+        color_group: 'cyan', importance: r.status === 'done' ? 0.8 : 0.6,
+        position_x: p[0], position_y: p[1], position_z: p[2],
+        metadata_json: JSON.stringify({ status: r.status, depth: r.depth, source_mode: r.source_mode }),
+      });
+      addEdge('cluster:web', id, 'contains', 0.6);
+      addEdge(id, 'core', 'informs', 0.3);
+      for (const sc of db.all('SELECT id FROM research_sources WHERE run_id=?', [r.id])) {
+        addEdge(`web:${sc.id}`, id, 'sourced', 0.3);
+      }
+      const rep = db.get('SELECT id,title FROM research_reports WHERE run_id=? ORDER BY created_at DESC LIMIT 1', [r.id]);
+      if (rep) {
+        const rid = `report:${rep.id}`;
+        const pr = positionFor('web', rid);
+        addNode({ id: rid, type: 'research_report', title: truncate(rep.title || 'Report', 48), summary: 'Synthesized research report', source_id: rep.id, color_group: 'gold', importance: 0.85, position_x: pr[0], position_y: pr[1], position_z: pr[2] });
+        addEdge(rid, id, 'reports', 0.6);
+      }
+    }
+  } catch {
+    /* research tables empty / not migrated yet */
+  }
+
+  // Documents (Part A) — each local document becomes a node in the Documents region.
+  try {
+    for (const d of db.all('SELECT id,title,updated_at,length(content) AS size FROM documents WHERE archived=0 ORDER BY updated_at DESC LIMIT 200')) {
+      const id = `doc:${d.id}`;
+      const p = positionFor('documents', id);
+      const flagged = secFlagged.has(d.id);
+      addNode({
+        id, type: 'document', title: truncate(d.title || 'Untitled', 48), summary: 'Document', source_id: d.id,
+        color_group: flagged ? 'red' : 'green', importance: Math.min(1, 0.45 + (d.size || 0) / 8000),
+        position_x: p[0], position_y: p[1], position_z: p[2], updated_at: d.updated_at,
+        metadata_json: JSON.stringify({ size: d.size, securityFlag: flagged }),
+      });
+      addEdge('cluster:documents', id, 'contains', 0.5);
+      if (flagged) addEdge(id, 'core', 'security_warning', 0.3);
+    }
+  } catch {
+    /* documents table empty */
+  }
+
+  // Notes (Part B) → nodes in the Notes region, cross-linked to their explicit links.
+  try {
+    for (const n of db.all('SELECT id,title,content,updated_at FROM notes WHERE archived=0 ORDER BY updated_at DESC LIMIT 300')) {
+      const id = `note:${n.id}`;
+      const p = positionFor('notes', id);
+      const nflag = secFlagged.has(n.id);
+      addNode({ id, type: 'note', title: truncate(n.title || n.content || 'Note', 46), summary: (n.content || '').slice(0, 120), source_id: n.id, color_group: nflag ? 'red' : 'violet', importance: 0.55, position_x: p[0], position_y: p[1], position_z: p[2], updated_at: n.updated_at, metadata_json: JSON.stringify({ securityFlag: nflag }) });
+      addEdge('cluster:notes', id, 'contains', 0.5);
+      if (nflag) addEdge(id, 'core', 'security_warning', 0.3);
+      for (const lk of db.all('SELECT * FROM note_links WHERE note_id=?', [n.id])) {
+        const target = lk.target_type === 'memory' ? `mem:${lk.target_id}` : lk.target_type === 'conversation' ? `conv:${lk.target_id}` : lk.target_type === 'task' ? `task:${lk.target_id}` : lk.target_type === 'project' ? `proj:${slug(lk.target_id)}` : '';
+        if (target) addEdge(id, target, lk.target_type === 'task' ? 'spawned' : 'about', 0.35);
+      }
+    }
+  } catch { /* notes table empty */ }
+
+  // Tasks (Part B) → nodes in the Tasks region; overdue tasks glow red as a warning.
+  try {
+    const tnow = Date.now();
+    for (const t of db.all("SELECT * FROM tasks WHERE status<>'done' ORDER BY (due_at IS NULL), due_at ASC LIMIT 300")) {
+      const id = `task:${t.id}`;
+      const p = positionFor('tasks', id);
+      const overdue = !!t.due_at && t.due_at < tnow;
+      const pri = t.priority === 'urgent' ? 0.95 : t.priority === 'high' ? 0.8 : 0.6;
+      addNode({
+        id, type: 'task', title: truncate(t.title || 'Task', 46), summary: t.details || '', source_id: t.id,
+        color_group: overdue ? 'red' : 'amber', importance: overdue ? 1 : pri,
+        position_x: p[0], position_y: p[1], position_z: p[2],
+        metadata_json: JSON.stringify({ status: t.status, priority: t.priority, due_at: t.due_at, overdue }),
+      });
+      addEdge('cluster:tasks', id, 'contains', 0.5);
+      if (overdue) addEdge(id, 'core', 'overdue_warning', 0.4);
+    }
+  } catch { /* tasks table empty */ }
+
+  // Model benchmarks → Model nodes (Tools region). Faster models glow brighter;
+  // compare winners brighten further; failed/OOM benchmarks get a warning edge.
+  try {
+    const benches = db.all('SELECT * FROM benchmarks ORDER BY created_at DESC LIMIT 200');
+    const latest = new Map<string, any>();
+    for (const b of benches) if (!latest.has(b.model_path)) latest.set(b.model_path, b);
+    const winners = new Set(
+      db.all("SELECT DISTINCT winner_model FROM compare_runs WHERE winner_model IS NOT NULL AND winner_model<>''").map((r: any) => String(r.winner_model || '').split(/[\\/]/).pop())
+    );
+    const maxTps = Math.max(1, ...[...latest.values()].map((b) => b.tokens_per_sec || 0));
+    for (const b of latest.values()) {
+      const id = `model:${slug(b.model_name)}`;
+      const p = positionFor('tools', id);
+      const ok = b.status === 'ok';
+      const won = winners.has(b.model_name);
+      const importance = ok ? Math.min(1, 0.45 + 0.5 * ((b.tokens_per_sec || 0) / maxTps) + (won ? 0.2 : 0)) : 0.4;
+      addNode({
+        id, type: 'model', title: truncate(b.model_name, 40),
+        summary: ok ? `${b.tokens_per_sec} tok/s · ${b.backend}` : `failed: ${b.error || (b.oom ? 'OOM' : 'error')}`,
+        color_group: ok ? (won ? 'green' : 'blue') : 'amber', importance,
+        position_x: p[0], position_y: p[1], position_z: p[2],
+        metadata_json: JSON.stringify({ tokens_per_sec: b.tokens_per_sec, load_ms: b.load_ms, backend: b.backend, gpu_layers: b.gpu_layers, est_max_context: b.est_max_context, quant: b.quant, params_b: b.params_b, oom: !!b.oom, status: b.status, won }),
+      });
+      addEdge('cluster:tools', id, 'benchmarked', 0.5);
+      if (!ok) addEdge(id, 'core', b.oom ? 'oom_warning' : 'error_warning', 0.25);
+    }
+
+    // Compare runs → Compare nodes (Logic region), linked to the winning model node.
+    for (const r of db.all('SELECT * FROM compare_runs ORDER BY created_at DESC LIMIT 40')) {
+      const id = `compare:${r.id}`;
+      const p = positionFor('logic', id);
+      addNode({
+        id, type: 'compare', title: truncate(r.prompt || 'Compare', 46), source_id: r.id,
+        summary: r.winner_label ? `winner: Model ${r.winner_label}${r.blind ? ' (blind)' : ''}` : r.status,
+        color_group: 'amber', importance: 0.6, position_x: p[0], position_y: p[1], position_z: p[2],
+        metadata_json: JSON.stringify({ status: r.status, blind: !!r.blind, winner_label: r.winner_label }),
+      });
+      addEdge('cluster:logic', id, 'contains', 0.5);
+      if (r.winner_model) addEdge(id, `model:${slug(String(r.winner_model).split(/[\\/]/).pop() || '')}`, 'winner', 0.7);
+    }
+  } catch {
+    /* compare/benchmark tables empty */
+  }
+
+  // Skills + high-risk registered tools (Part E) → Tools region. Quiet by design:
+  // only enabled skills and high/critical enabled tools appear; risky ones glow red.
+  try {
+    for (const sk of db.all("SELECT id,name,risk_level FROM skills WHERE enabled=1 ORDER BY updated_at DESC LIMIT 60")) {
+      const id = `skill:${sk.id}`;
+      const p = positionFor('tools', id);
+      const risky = sk.risk_level === 'high' || sk.risk_level === 'critical';
+      addNode({ id, type: 'skill', title: truncate(sk.name || 'Skill', 40), summary: `skill · ${sk.risk_level}`, source_id: sk.id, color_group: risky ? 'red' : 'blue', importance: risky ? 0.85 : 0.6, position_x: p[0], position_y: p[1], position_z: p[2], metadata_json: JSON.stringify({ risk_level: sk.risk_level, warning: risky }) });
+      addEdge('cluster:tools', id, 'skill', 0.5);
+      if (risky) addEdge(id, 'core', 'high_risk_tool', 0.25);
+    }
+    const reg = require('./tools/toolRegistry').default;
+    for (const tool of reg.list()) {
+      if (!tool.enabled || (tool.riskLevel !== 'high' && tool.riskLevel !== 'critical')) continue;
+      const id = `regtool:${tool.id}`;
+      const p = positionFor('tools', id);
+      addNode({ id, type: 'tool', title: truncate(tool.name, 40), summary: `${tool.riskLevel} · ${tool.requiredPermission}`, color_group: tool.riskLevel === 'critical' ? 'red' : 'amber', importance: tool.riskLevel === 'critical' ? 0.9 : 0.75, position_x: p[0], position_y: p[1], position_z: p[2], metadata_json: JSON.stringify({ risk_level: tool.riskLevel, permission: tool.requiredPermission, warning: true }) });
+      addEdge('cluster:tools', id, 'registered', 0.4);
+    }
+  } catch { /* registry/skills not ready */ }
+
+  // Email (Part D) — account nodes + a few suspicious/recent message nodes. Never stores
+  // bodies or credentials; suspicious messages get a quiet security warning edge.
+  try {
+    for (const acc of db.all('SELECT id,label,email_address FROM email_accounts ORDER BY created_at ASC LIMIT 20')) {
+      const id = `emailacct:${acc.id}`;
+      const p = positionFor('email', id);
+      addNode({ id, type: 'email_account', title: truncate(acc.label || acc.email_address, 40), summary: 'Email account', source_id: acc.id, color_group: 'blue', importance: 0.7, position_x: p[0], position_y: p[1], position_z: p[2] });
+      addEdge('cluster:email', id, 'contains', 0.5);
+      const msgs = db.all('SELECT id,subject,prompt_risk_score FROM email_messages WHERE account_id=? ORDER BY (prompt_risk_score IS NULL), prompt_risk_score DESC, date DESC LIMIT 12', [acc.id]);
+      for (const m of msgs) {
+        const suspicious = (m.prompt_risk_score || 0) >= 25;
+        if (!suspicious && msgs.indexOf(m) > 5) continue; // keep it quiet: top few + any suspicious
+        const mid = `email:${m.id}`;
+        const mp = positionFor('email', mid);
+        addNode({ id: mid, type: 'email_message', title: truncate(m.subject || 'Message', 44), summary: 'Email', source_id: m.id, color_group: suspicious ? 'red' : 'blue', importance: suspicious ? 0.85 : 0.5, position_x: mp[0], position_y: mp[1], position_z: mp[2], metadata_json: JSON.stringify({ suspicious, account: acc.id }) });
+        addEdge(id, mid, 'message', 0.3);
+        if (suspicious) addEdge(mid, 'core', 'security_warning', 0.25);
+      }
+    }
+    // tasks/calendar created from email link back to their source message node.
+    for (const t of db.all("SELECT id,source_id FROM tasks WHERE source_type='email' AND source_id IS NOT NULL LIMIT 100")) addEdge(`task:${t.id}`, `email:${t.source_id}`, 'from_email', 0.3);
+  } catch { /* email tables empty */ }
+
+  // Security posture (Part G) — one quiet node in the Logic region. No secrets, ever.
+  try {
+    const authOn = !!s.authEnabled;
+    const totpOn = !!(db.get('SELECT totp_enabled FROM auth_config WHERE id=?', ['admin']) as any)?.totp_enabled;
+    const vaultCount = (db.get('SELECT COUNT(*) AS n FROM vault_items') as any)?.n || 0;
+    const recentFails = (db.get('SELECT COUNT(*) AS n FROM auth_audit WHERE event=? AND success=0 AND ts > ?', ['login_failure', Date.now() - 86400000]) as any)?.n || 0;
+    if (authOn || vaultCount > 0) {
+      const id = 'security:posture';
+      const p = positionFor('logic', id);
+      addNode({ id, type: 'security', title: authOn ? (totpOn ? 'Secured (2FA)' : 'Secured') : 'Vault', summary: `${vaultCount} secret(s)`, color_group: recentFails > 3 ? 'red' : 'amber', importance: 0.7, position_x: p[0], position_y: p[1], position_z: p[2], metadata_json: JSON.stringify({ authEnabled: authOn, totpEnabled: totpOn, vaultItems: vaultCount, recentFailedLogins: recentFails }) });
+      addEdge('cluster:logic', id, 'protects', 0.5);
+      if (recentFails > 3) addEdge(id, 'core', 'security_warning', 0.3);
+    }
+    // Backup/Restore (Part H) — quiet System node; failed restore warns. No secrets/manifests.
+    const lastBackup: any = db.get("SELECT created_at FROM backup_history WHERE kind='backup' ORDER BY created_at DESC LIMIT 1");
+    const lastRestore: any = db.get("SELECT status,created_at FROM backup_history WHERE kind='restore' ORDER BY created_at DESC LIMIT 1");
+    const bcount = (db.get('SELECT COUNT(*) AS n FROM backup_history') as any)?.n || 0;
+    if (bcount > 0) {
+      const id = 'system:backup';
+      const p = positionFor('logic', id);
+      const restoreFailed = lastRestore && lastRestore.status === 'error';
+      addNode({ id, type: 'system', title: 'Backups', summary: lastBackup ? `last backup ${new Date(lastBackup.created_at).toLocaleDateString()}` : 'no backups', color_group: restoreFailed ? 'red' : 'slate', importance: restoreFailed ? 0.85 : 0.5, position_x: p[0], position_y: p[1], position_z: p[2], metadata_json: JSON.stringify({ backups: bcount, lastRestoreStatus: lastRestore?.status || null }) });
+      addEdge('cluster:logic', id, 'contains', 0.4);
+      if (restoreFailed) addEdge(id, 'core', 'restore_warning', 0.3);
+    }
+  } catch { /* security/backup tables not present */ }
 
   // Persist
   db.run('DELETE FROM brain_nodes');
