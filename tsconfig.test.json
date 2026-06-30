@@ -72,6 +72,7 @@
     "tests/routeConsistency.test.ts",
     "tests/workspacePicker.test.ts",
     "tests/modelCookbook.test.ts",
-    "tests/knowledgeGuard.test.ts"
+    "tests/knowledgeGuard.test.ts",
+    "tests/sourceState.test.ts"
   ]
 }

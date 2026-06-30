@@ -65,3 +65,12 @@ text or secret snippets. Skip reasons are aggregate counts only (no file paths/c
   (page/section/chunk) are **incremental** — System Health tracks **Local Knowledge** by indexed
   state and **Knowledge Safety** separately (the guard is complete and tested).
 - The Local Knowledge page hasn't been fully migrated to the shared design system yet.
+
+## Source lifecycle states (persisted)
+
+Each indexed source now carries a persisted lifecycle **state** (`electron/services/knowledge/
+sourceStateCore.ts`): `pending → validating → indexing → indexed`, plus `skipped` (safety/unsupported),
+`stale` (changed since indexing), `failed` (sanitized error stored — no path/secret/contents), and
+`removed`. The Local Knowledge page shows **indexed / failed / stale** counts; System Health surfaces
+failed-source counts and the honest gap (per-file stale detection + full citation precision are
+incremental). Removed/skipped sources don't surface as active workspace/search results.

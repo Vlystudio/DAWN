@@ -9,6 +9,7 @@ import embeddings from './embeddings';
 import parsers from './parsers';
 import safety from './safety';
 import guard from './knowledge/knowledgeGuardCore';
+import sourceState from './knowledge/sourceStateCore';
 import { chunkText } from './chunk';
 
 /**
@@ -135,24 +136,38 @@ class Rag extends EventEmitter {
   }
 
   private async indexFile(file: string, name: string, mtime: number, s: any) {
-    const text = await parsers.extractText(file);
-    if (!text.trim()) return;
-    const hash = sha(text);
-    const existing = db.get<{ id: string; status: string }>('SELECT id, status FROM knowledge_sources WHERE path=?', [file]);
-    if (existing && existing.status === hash) return; // unchanged
-    if (existing) {
-      db.run('DELETE FROM knowledge_chunks WHERE source_id=?', [existing.id]);
-      db.run('DELETE FROM knowledge_sources WHERE id=?', [existing.id]);
-    }
-    const chunks = chunkText(text, { size: s.chunkSize, overlap: s.chunkOverlap });
-    if (!chunks.length) return;
-    const sourceId = newId();
-    db.run('INSERT INTO knowledge_sources (id,path,name,kind,status,added_at) VALUES (?,?,?,?,?,?)', [sourceId, file, name, 'file', hash, Date.now()]);
-    for (let i = 0; i < chunks.length; i++) {
-      const vec = await embeddings.embed(chunks[i]);
-      db.run('INSERT INTO knowledge_chunks (id,source_id,path,name,chunk_index,content,hash,embedding) VALUES (?,?,?,?,?,?,?,?)', [
-        newId(), sourceId, file, name, i, chunks[i], hash, db.encodeVec(vec),
-      ]);
+    try {
+      const text = await parsers.extractText(file);
+      if (!text.trim()) return;
+      const hash = sha(text);
+      const existing = db.get<{ id: string; status: string }>('SELECT id, status FROM knowledge_sources WHERE path=?', [file]);
+      if (existing && existing.status === hash) return; // unchanged
+      if (existing) {
+        db.run('DELETE FROM knowledge_chunks WHERE source_id=?', [existing.id]);
+        db.run('DELETE FROM knowledge_sources WHERE id=?', [existing.id]);
+      }
+      const chunks = chunkText(text, { size: s.chunkSize, overlap: s.chunkOverlap });
+      if (!chunks.length) return;
+      const sourceId = newId();
+      let size = 0; try { size = fs.statSync(file).size; } catch { /* */ }
+      const now = Date.now();
+      db.run('INSERT INTO knowledge_sources (id,path,name,kind,status,added_at,state,size_bytes,indexed_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)',
+        [sourceId, file, name, 'file', hash, now, 'indexed', size, now, now]);
+      for (let i = 0; i < chunks.length; i++) {
+        const vec = await embeddings.embed(chunks[i]);
+        db.run('INSERT INTO knowledge_chunks (id,source_id,path,name,chunk_index,content,hash,embedding) VALUES (?,?,?,?,?,?,?,?)', [
+          newId(), sourceId, file, name, i, chunks[i], hash, db.encodeVec(vec),
+        ]);
+      }
+    } catch (e: any) {
+      // Record a sanitized failure so the user sees it (no path, no secrets, no contents).
+      try {
+        const now = Date.now();
+        const err = sourceState.sanitizeError(e);
+        const existing = db.get<{ id: string }>('SELECT id FROM knowledge_sources WHERE path=?', [file]);
+        if (existing) db.run('UPDATE knowledge_sources SET state=?, error_message=?, updated_at=? WHERE id=?', ['failed', err, now, existing.id]);
+        else db.run('INSERT INTO knowledge_sources (id,path,name,kind,status,added_at,state,error_message,updated_at) VALUES (?,?,?,?,?,?,?,?,?)', [newId(), file, name, 'file', '', now, 'failed', err, now]);
+      } catch { /* */ }
     }
   }
 
@@ -199,9 +214,11 @@ class Rag extends EventEmitter {
     }));
     const embeddedChunks = (() => { try { return db.get<{ c: number }>('SELECT COUNT(*) c FROM knowledge_chunks WHERE embedding IS NOT NULL')!.c; } catch { return 0; } })();
     const embedModel = (() => { try { return settings.get().embedModel || ''; } catch { return ''; } })();
+    const states = (() => { try { return sourceState.summarizeStates(db.all<{ state: string }>('SELECT state FROM knowledge_sources').map((r) => r.state)); } catch { return undefined; } })();
     return {
       indexing: this.indexing, paused: this.paused, current: this.current, total: this.total, currentFile: this.currentFile, folders, totals: { files, chunks },
       skipped: this.lastSkips,
+      states,
       embedding: { configuredModel: embedModel, embeddedChunks, mode: embeddedChunks > 0 ? 'embeddings' : (chunks > 0 ? 'keyword fallback' : 'none yet') },
     };
   }

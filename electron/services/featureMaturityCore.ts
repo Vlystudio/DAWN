@@ -70,7 +70,7 @@ export interface MaturitySignals {
   overdueTasks?: number; events?: number; researchRuns?: number; knowledgeSources?: number;
   knowledgeChunks?: number; brainNodes?: number; brainEdges?: number; skills?: number; toolAudit?: number;
   promptEvents?: number; vaultItems?: number; emailAccounts?: number; emailLastStatus?: string | null;
-  backups?: number; workspaceItems?: number; workspaceLinks?: number; workspaceRegistered?: number;
+  backups?: number; workspaceItems?: number; workspaceLinks?: number; workspaceRegistered?: number; knowledgeFailed?: number;
   toolsEnabled?: boolean; voiceEnabled?: boolean; voiceEngine?: string; companionEnabled?: boolean;
   obsidianConfigured?: boolean; notionConfigured?: boolean; visionEnabled?: boolean; dcdAvailable?: boolean;
   agentosEnabled?: boolean; authEnabled?: boolean; totpEnabled?: boolean; firstRunComplete?: boolean;
@@ -147,7 +147,7 @@ const EVAL: Record<string, Evaluator> = {
   workspace_linking: () => ({ status: 'COMPLETE', works: ['Visual item picker (search + type filter, no IDs)', 'Link dialog with relationship type', 'Friendly "already linked" handling; self/invalid blocked', 'Used in Workspace + Chat "Link" action', 'Related panel: add / remove / open / filter'], missing: [] }),
   memory: (s) => ({ status: n(s.memories) > 0 ? 'COMPLETE' : 'PARTIAL', works: ['Add/edit/pin memories', 'Cited recall in chat'], missing: n(s.memories) > 0 ? [] : ['No memories saved yet'], nextAction: n(s.memories) > 0 ? undefined : 'Save a memory from chat' }),
   knowledge: (s) => n(s.indexedFolders) > 0
-    ? { status: n(s.knowledgeChunks) > 0 ? 'COMPLETE' : 'PARTIAL', works: ['Folder indexing', 'Cited retrieval', s.embeddingsAvailable ? 'Embeddings' : 'Keyword fallback'], missing: n(s.knowledgeChunks) > 0 ? (s.embeddingsAvailable ? [] : ['Embedding model (using keyword fallback)']) : ['Index has no chunks yet'], nextAction: n(s.knowledgeChunks) > 0 ? undefined : 'Re-index your folders' }
+    ? { status: n(s.knowledgeChunks) > 0 ? 'COMPLETE' : 'PARTIAL', works: ['Folder indexing with lifecycle state (indexed/failed)', 'Cited retrieval', s.embeddingsAvailable ? 'Embeddings' : 'Keyword fallback', 'Protected-path skipping with reasons'], missing: [...(n(s.knowledgeChunks) > 0 ? (s.embeddingsAvailable ? [] : ['Embedding model (using keyword fallback)']) : ['Index has no chunks yet']), ...(n(s.knowledgeFailed) > 0 ? [`${n(s.knowledgeFailed)} source(s) failed to index — see Local Knowledge`] : []), 'Per-file stale detection + full citation precision are incremental'], nextAction: n(s.knowledgeChunks) > 0 ? undefined : 'Re-index your folders' }
     : { status: 'BLOCKED_BY_SETUP', works: ['Indexer + retrieval pipeline', 'Protected-path skipping (with reasons)', 'Sources auto-register in the Workspace Graph'], missing: ['No folders indexed'], requiredSetup: 'Add an opt-in folder in Local Knowledge.', nextAction: 'Open Local Knowledge' },
   knowledge_safety: () => ({ status: 'COMPLETE', works: ['Never indexes .env/keys/credentials/vault/auth/browser-profiles/password-managers/node_modules/.git', 'Skips with a plain-language reason (shown in status)', '5 MB file-size limit; unsupported types skipped', 'No whole-disk scan — folders are opt-in'], missing: [] }),
   research: (s) => ({ status: n(s.researchRuns) > 0 ? 'COMPLETE' : 'PARTIAL', works: ['Plan → search → cited report', 'Untrusted-source firewall', 'Web off by default'], missing: n(s.researchRuns) > 0 ? [] : ['No research runs yet'], nextAction: n(s.researchRuns) > 0 ? undefined : 'Start a research run' }),

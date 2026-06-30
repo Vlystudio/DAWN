@@ -68,6 +68,15 @@ export default function KnowledgeView() {
         <Stat label="Chunks" value={status.totals.chunks} />
       </div>
 
+      {status.states ? (
+        <div className="flex items-center gap-2 mb-2 flex-wrap text-[11px]">
+          <span className="text-faint">Sources:</span>
+          {status.states.indexed > 0 ? <span className="px-2 py-0.5 rounded-full border border-neural-green/40 bg-neural-green/10 text-neural-green">{status.states.indexed} indexed</span> : null}
+          {status.states.failed > 0 ? <span className="px-2 py-0.5 rounded-full border border-neural-red/40 bg-neural-red/10 text-neural-red">{status.states.failed} failed</span> : null}
+          {status.states.stale > 0 ? <span className="px-2 py-0.5 rounded-full border border-neural-amber/40 bg-neural-amber/10 text-neural-amber">{status.states.stale} stale</span> : null}
+          {status.states.indexed === 0 && status.states.failed === 0 ? <span className="text-faint">none yet</span> : null}
+        </div>
+      ) : null}
       {status.embedding ? (
         <div className="text-[11px] text-faint mb-2">
           Retrieval: <span className="text-dim">{status.embedding.mode === 'embeddings' ? 'embeddings' : status.embedding.mode === 'keyword fallback' ? 'keyword fallback (local hash — no neural embedding model)' : 'not indexed yet'}</span>

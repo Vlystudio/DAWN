@@ -29,7 +29,7 @@ export const ADAPTER_DEFS: AdapterDef[] = [
   { feature: 'benchmark', type: 'benchmark', table: 'benchmarks', idCol: 'id', labelCols: ['model_name'], snippetCols: ['status'], updatedCols: ['created_at', 'started_at'], metaCols: ['status', 'quant'] },
   { feature: 'email', type: 'email_account', table: 'email_accounts', idCol: 'id', labelCols: ['label', 'email_address'], updatedCols: ['updated_at', 'created_at'] },
   // Knowledge sources: label by name only (never the full path), metadata = status/kind only.
-  { feature: 'knowledge', type: 'knowledge_source', table: 'knowledge_sources', idCol: 'id', labelCols: ['name'], updatedCols: ['added_at'], metaCols: ['status', 'kind'] },
+  { feature: 'knowledge', type: 'knowledge_source', table: 'knowledge_sources', idCol: 'id', labelCols: ['name'], updatedCols: ['indexed_at', 'added_at'], metaCols: ['kind'], extraWhere: "(state IS NULL OR state='indexed')" },
 ];
 
 export interface MappedItem { type: ItemType; refId: string; label: string; sourceFeature: string; metadata: string; updatedAt: number }

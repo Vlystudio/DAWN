@@ -345,6 +345,12 @@ function migrate() {
     summary: 'TEXT', source_type: 'TEXT', citation_label: 'TEXT', local_ref: 'TEXT',
     reliability_score: 'REAL', status: 'TEXT', error: 'TEXT', position: 'INTEGER',
   });
+  // Knowledge source lifecycle (Loop 27): `status` keeps the content hash (stale check); `state` is
+  // the lifecycle. Only columns actually written/read below are added.
+  ensureColumns('knowledge_sources', {
+    state: 'TEXT', skipped_reason: 'TEXT', error_message: 'TEXT', size_bytes: 'INTEGER',
+    indexed_at: 'INTEGER', updated_at: 'INTEGER',
+  });
 }
 
 export function run(sql: string, params: any[] = []) {

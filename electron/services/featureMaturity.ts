@@ -70,6 +70,7 @@ export function gatherSignals(): MaturitySignals {
     workspaceItems: tryNum(() => count('workspace_items')),
     workspaceLinks: tryNum(() => count('workspace_links')),
     workspaceRegistered: tryNum(() => count('workspace_items', 'ref_id IS NOT NULL')),
+    knowledgeFailed: tryNum(() => count('knowledge_sources', "state='failed'")),
     toolsEnabled: !!s.toolsEnabled,
     voiceEnabled: !!s.voiceEnabled, voiceEngine: s.voiceEngine || '',
     companionEnabled: !!s.companionEnabled,
