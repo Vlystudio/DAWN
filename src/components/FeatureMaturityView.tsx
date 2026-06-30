@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Activity, RefreshCw, ArrowRight, ExternalLink } from 'lucide-react';
+import { Activity, RefreshCw, ArrowRight, ExternalLink, Download, ClipboardCopy } from 'lucide-react';
 import { Badge, Spinner, ErrorCallout, SectionHeader, EmptyState } from '../ui/primitives';
 
 /** Status → badge kind (mirrors featureMaturityCore.statusTone; kept local to avoid a cross-boundary import). */
@@ -42,6 +42,16 @@ export default function FeatureMaturityView({ onNav }: { onNav?: (view: string) 
   const [checking, setChecking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<string>('all');
+  const [diag, setDiag] = useState<string | null>(null);
+
+  const exportDiag = async () => {
+    try { const r = await (window as any).dawn.diagnostics.export(); setDiag(r?.ok ? `Saved to ${r.path}` : r?.canceled ? null : `Export failed: ${r?.error || 'unknown'}`); }
+    catch (e: any) { setDiag(`Export failed: ${String(e?.message || e)}`); }
+  };
+  const copyDiag = async () => {
+    try { const s = await (window as any).dawn.diagnostics.summary(); await navigator.clipboard.writeText(s); setDiag('Error summary copied to clipboard.'); }
+    catch (e: any) { setDiag(`Copy failed: ${String(e?.message || e)}`); }
+  };
 
   const load = async (run = false) => {
     try {
@@ -116,6 +126,13 @@ export default function FeatureMaturityView({ onNav }: { onNav?: (view: string) 
               {/* completion meter */}
               <div className="mt-3 h-1.5 rounded-full bg-panel2/60 overflow-hidden" role="progressbar" aria-valuenow={s?.completionPct ?? 0} aria-valuemin={0} aria-valuemax={100}>
                 <div className="h-full rounded-full" style={{ width: `${s?.completionPct ?? 0}%`, background: 'var(--accent)' }} />
+              </div>
+              {/* Diagnostics — redacted bundle export + copy error summary */}
+              <div className="mt-3 pt-3 border-t border-border/60 flex items-center gap-2 flex-wrap">
+                <span className="text-[11px] text-faint mr-1">Diagnostics (secrets redacted):</span>
+                <button onClick={exportDiag} className="inline-flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-lg border border-border text-dim hover:text-ink"><Download size={12} aria-hidden /> Export bundle</button>
+                <button onClick={copyDiag} className="inline-flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-lg border border-border text-dim hover:text-ink"><ClipboardCopy size={12} aria-hidden /> Copy error summary</button>
+                {diag ? <span className="text-[11px] text-neural-green">{diag}</span> : null}
               </div>
             </div>
 

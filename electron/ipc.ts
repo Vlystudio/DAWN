@@ -40,6 +40,7 @@ import companion from './services/companion';
 import fileAgent from './services/fileAgent';
 import featureMaturity from './services/featureMaturity';
 import globalSearch from './services/globalSearch';
+import diagnostics from './services/diagnostics';
 import db from './services/db';
 import * as pathlib from 'path';
 
@@ -573,6 +574,21 @@ export function registerIpc() {
 
   // --- Global Search (never searches vault/auth/audit; snippets redacted) ---
   ipcMain.handle('search:query', (_e, term) => globalSearch.query(String(term || '')));
+
+  // --- Diagnostics (redacted bundle; export to a user-chosen file) ---
+  ipcMain.handle('diagnostics:bundle', () => diagnostics.bundle());
+  ipcMain.handle('diagnostics:summary', () => diagnostics.summary());
+  ipcMain.handle('diagnostics:export', async (e) => {
+    const win = BrowserWindow.fromWebContents(e.sender) || BrowserWindow.getFocusedWindow();
+    const res = await dialog.showSaveDialog(win!, {
+      title: 'Export DAWN diagnostics (redacted)',
+      defaultPath: `dawn-diagnostics-${new Date().toISOString().slice(0, 10)}.json`,
+      filters: [{ name: 'JSON', extensions: ['json'] }],
+    });
+    if (res.canceled || !res.filePath) return { ok: false, canceled: true };
+    try { fs.writeFileSync(res.filePath, JSON.stringify(diagnostics.bundle(), null, 2), 'utf-8'); return { ok: true, path: res.filePath }; }
+    catch (err: any) { return { ok: false, error: String(err?.message || err) }; }
+  });
 
   // Misc
   ipcMain.handle('open:external', (_e, url) => shell.openExternal(url));

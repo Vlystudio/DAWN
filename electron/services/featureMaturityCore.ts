@@ -173,7 +173,7 @@ const EVAL: Record<string, Evaluator> = {
   logs: () => ({ status: 'COMPLETE', works: ['Runtime/tool/error logs', 'Redacted'], missing: [] }),
   onboarding: (s) => ({ status: yes(s.firstRunComplete) ? 'COMPLETE' : 'PARTIAL', works: ['First-run model/memory/knowledge setup'], missing: yes(s.firstRunComplete) ? ['Per-feature setup wizards (incremental)'] : ['First run not completed'], nextAction: yes(s.firstRunComplete) ? undefined : 'Finish first-run setup' }),
   health: () => ({ status: 'COMPLETE', works: ['Honest, live feature completion map'], missing: [] }),
-  diagnostics: () => ({ status: 'PARTIAL', works: ['Health checks per area'], missing: ['One-click redacted diagnostics bundle export'], nextAction: 'Planned: export diagnostics bundle' }),
+  diagnostics: () => ({ status: 'COMPLETE', works: ['Health checks per area', 'One-click redacted diagnostics export', 'Copy error summary'], missing: [] }),
   updater: (s) => ({ status: yes(s.updaterConfigured) ? 'COMPLETE' : 'BLOCKED_BY_SETUP', works: ['Manual check', 'No silent install'], missing: yes(s.updaterConfigured) ? [] : ['No private update feed configured'], requiredSetup: yes(s.updaterConfigured) ? undefined : 'Optional: point at a private update feed.', nextAction: undefined }),
   palette: (s) => yes(s.commandPalette)
     ? { status: 'COMPLETE', works: ['Keyboard command launcher (Ctrl/Cmd+K)'], missing: [] }

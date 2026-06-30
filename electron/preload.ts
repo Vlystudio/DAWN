@@ -384,6 +384,11 @@ const api = {
   search: {
     query: (term: string) => ipcRenderer.invoke('search:query', term),
   },
+  diagnostics: {
+    bundle: () => ipcRenderer.invoke('diagnostics:bundle'),
+    summary: () => ipcRenderer.invoke('diagnostics:summary'),
+    export: () => ipcRenderer.invoke('diagnostics:export'),
+  },
   openExternal: (url: string) => ipcRenderer.invoke('open:external', url),
   onNav: (cb: (view: string) => void) => sub('nav', cb),
 };

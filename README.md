@@ -59,6 +59,8 @@ Everything runs on your machine. No chat or files are sent to any cloud service.
 - **PromptSecurity** — a central firewall: untrusted content (RAG/web/notes/docs/email/tool output) is wrapped as evidence and can **never** become system instructions.
 - **Security / Vault / Auth / 2FA** — optional Secure mode (scrypt password, in-memory session, TOTP + backup codes, app lock), an **AES-256-GCM Vault** (OS-keychain + password-wrapped key). See [SECURITY](docs/SECURITY.md).
 - **Backup / Restore** — verified `.dawnbackup` archives, encrypted vault included, **pre-restore safety snapshot** + rollback, critical-approval restore. See [BACKUP_RESTORE](docs/BACKUP_RESTORE.md).
+- **System Health** — an honest, live feature-completion map (status / what works / what's missing / next step per area) with a redacted **diagnostics export**. See [SYSTEM_HEALTH](docs/SYSTEM_HEALTH.md).
+- **Command palette** (`Ctrl/Cmd+K`) and **Global search** (`Ctrl/Cmd+Shift+F`) — jump to any page/action and search across conversations, notes, tasks, documents, research, and email subjects (the vault is never searched).
 
 **Privacy & security principles:** local-first (no cloud, no telemetry); secrets are
 never stored in plaintext, never logged, never put into model prompts, never in
