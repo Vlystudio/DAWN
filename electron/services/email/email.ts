@@ -282,8 +282,24 @@ export function recentAudit(limit = 100) { return db.all('SELECT * FROM email_au
 
 function safe(s: string): any[] { try { const v = JSON.parse(s || '[]'); return Array.isArray(v) ? v : []; } catch { return []; } }
 
+/** Rich provider guidance for the setup wizard (honest: OAuth not implemented). */
+export function providerGuides() { return core.PROVIDER_GUIDES; }
+
+/** Test only incoming (IMAP); returns a plain-English error on failure. */
+export async function testIncoming(cfg: any): Promise<{ ok: boolean; error?: string }> {
+  try { const r = await testConnection(cfg); return r.imap?.ok ? { ok: true } : { ok: false, error: core.humanizeEmailError(r.imap?.error || 'IMAP test failed') }; }
+  catch (e: any) { return { ok: false, error: core.humanizeEmailError(e) }; }
+}
+
+/** Test only outgoing (SMTP); returns a plain-English error on failure. */
+export async function testOutgoing(cfg: any): Promise<{ ok: boolean; error?: string }> {
+  try { const r = await testConnection(cfg); return r.smtp?.ok ? { ok: true } : { ok: false, error: core.humanizeEmailError(r.smtp?.error || 'SMTP test failed') }; }
+  catch (e: any) { return { ok: false, error: core.humanizeEmailError(e) }; }
+}
+
 export default {
   listAccounts, getAccount, createAccount, updateAccount, deleteAccount, testConnection,
+  testIncoming, testOutgoing, providerGuides,
   listFolders, sync, listMessages, getMessage, thread,
   summarize, summarizeThread, extractActions, draftReply, saveDraft, getDraft, deleteDraft, sendDraft,
   attachmentInfo, downloadAttachment, listTags, createTag, tagMessage, untagMessage,

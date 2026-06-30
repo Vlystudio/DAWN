@@ -42,6 +42,58 @@ export const PROVIDER_PRESETS: Record<string, Partial<AccountConfig> & { note?: 
   custom: { imapPort: 993, imapSecure: true, smtpPort: 587, smtpStartTls: true },
 };
 
+/**
+ * Rich, user-facing provider guidance for the Email Setup Wizard. DAWN does NOT implement OAuth, so
+ * every provider here is honest about needing an app password. These are presentation only — the
+ * actual connection config comes from PROVIDER_PRESETS.
+ */
+export interface ProviderGuide {
+  id: string; name: string; preset: string; appPasswordRequired: boolean; oauthSupported: boolean;
+  imapHost: string; imapPort: number; imapSecurity: string; smtpHost: string; smtpPort: number; smtpSecurity: string;
+  appPasswordUrl?: string; instructions: string[]; troubleshooting: string[];
+}
+export const PROVIDER_GUIDES: ProviderGuide[] = [
+  { id: 'gmail', name: 'Gmail', preset: 'gmail', appPasswordRequired: true, oauthSupported: false,
+    imapHost: 'imap.gmail.com', imapPort: 993, imapSecurity: 'SSL/TLS', smtpHost: 'smtp.gmail.com', smtpPort: 465, smtpSecurity: 'SSL/TLS',
+    appPasswordUrl: 'https://myaccount.google.com/apppasswords',
+    instructions: ['Turn on 2-Step Verification for your Google account.', 'Open Google → Security → App passwords.', 'Create an app password for "Mail" and copy the 16-character code.', 'Use that code here as your password (not your normal Google password).'],
+    troubleshooting: ['“Username and password not accepted” → you used your normal password; use an App Password.', 'No App passwords option → enable 2-Step Verification first.', 'Still blocked → check Google "Less secure app access" is not interfering (App Passwords bypass it).'] },
+  { id: 'outlook', name: 'Outlook / Microsoft 365', preset: 'outlook', appPasswordRequired: true, oauthSupported: false,
+    imapHost: 'outlook.office365.com', imapPort: 993, imapSecurity: 'SSL/TLS', smtpHost: 'smtp.office365.com', smtpPort: 587, smtpSecurity: 'STARTTLS',
+    appPasswordUrl: 'https://account.microsoft.com/security',
+    instructions: ['Enable 2-step verification on your Microsoft account.', 'Go to Security → Advanced security options → App passwords.', 'Create one and paste it here.', 'Some work/school 365 accounts disable IMAP — ask your admin to enable it.'],
+    troubleshooting: ['Auth fails on a work account → IMAP may be disabled by your organization.', 'STARTTLS on port 587 — keep SMTP security set to STARTTLS, not SSL.'] },
+  { id: 'icloud', name: 'iCloud Mail', preset: 'icloud', appPasswordRequired: true, oauthSupported: false,
+    imapHost: 'imap.mail.me.com', imapPort: 993, imapSecurity: 'SSL/TLS', smtpHost: 'smtp.mail.me.com', smtpPort: 587, smtpSecurity: 'STARTTLS',
+    appPasswordUrl: 'https://appleid.apple.com',
+    instructions: ['Turn on two-factor authentication for your Apple ID.', 'Sign in at appleid.apple.com → Sign-In and Security → App-Specific Passwords.', 'Generate one for "DAWN Mail" and paste it here.'],
+    troubleshooting: ['Use your full @icloud.com address as the username.', 'A normal Apple ID password will be rejected — you must use an app-specific password.'] },
+  { id: 'yahoo', name: 'Yahoo Mail', preset: 'yahoo', appPasswordRequired: true, oauthSupported: false,
+    imapHost: 'imap.mail.yahoo.com', imapPort: 993, imapSecurity: 'SSL/TLS', smtpHost: 'smtp.mail.yahoo.com', smtpPort: 465, smtpSecurity: 'SSL/TLS',
+    appPasswordUrl: 'https://login.yahoo.com/account/security',
+    instructions: ['Go to Yahoo Account Security.', 'Turn on 2-step verification.', 'Generate an app password and paste it here.'],
+    troubleshooting: ['Yahoo blocks normal passwords for mail apps — an app password is required.'] },
+  { id: 'custom', name: 'Custom IMAP/SMTP', preset: 'custom', appPasswordRequired: false, oauthSupported: false,
+    imapHost: '', imapPort: 993, imapSecurity: 'SSL/TLS', smtpHost: '', smtpPort: 587, smtpSecurity: 'STARTTLS',
+    instructions: ['Enter your provider\'s IMAP host + port (incoming) and SMTP host + port (outgoing).', 'Pick SSL/TLS (usually port 993 IMAP / 465 SMTP) or STARTTLS (usually 587 SMTP).', 'Use whatever credentials your provider requires (often an app password).'],
+    troubleshooting: ['Check your provider\'s "IMAP settings" help page for exact hosts/ports.', 'If unsure on security: 993/465 = SSL/TLS, 587 = STARTTLS.'] },
+];
+
+/** Turn a raw IMAP/SMTP error into a plain-English, actionable message (never leaks a credential). */
+export function humanizeEmailError(raw: any): string {
+  const e = String(raw == null ? '' : (raw.message || raw)).slice(0, 300);
+  const t = e.toLowerCase();
+  if (/authenticationfailed|invalid credentials|auth.*fail|\b535\b|login.*fail|password.*(rejected|incorrect)|\b\[AUTH/.test(t))
+    return 'Sign-in was rejected. Most providers need an App Password (not your normal password) with 2-step verification turned on.';
+  if (/enotfound|getaddrinfo|dns/.test(t)) return 'Could not find the mail server — check the host name and your internet connection.';
+  if (/etimedout|timed? ?out/.test(t)) return 'The connection timed out — check the port and that a firewall isn\'t blocking it.';
+  if (/econnrefused|connection refused/.test(t)) return 'The server refused the connection — check the host and port.';
+  if (/certificate|self.?signed|ssl|tls|wrong version number/.test(t)) return 'TLS/SSL problem — check the security setting (SSL/TLS vs STARTTLS) matches the port.';
+  if (/imap.*disabled|not enabled|enable imap/.test(t)) return 'IMAP appears disabled for this account — enable IMAP in your provider\'s settings (or ask your admin).';
+  if (!e) return 'Unknown error.';
+  return e;
+}
+
 /** Credential-free account view (never includes password or vault item id). */
 export function accountPublicView(row: any) {
   return {
@@ -159,7 +211,7 @@ export function matchSearch(msg: { subject?: string; from_name?: string; from_em
 }
 
 export default {
-  validateAccountConfig, PROVIDER_PRESETS, accountPublicView, sanitizeEmailHtml, htmlToText,
+  validateAccountConfig, PROVIDER_PRESETS, PROVIDER_GUIDES, humanizeEmailError, accountPublicView, sanitizeEmailHtml, htmlToText,
   normalizeSubject, threadKey, snippet, contentHash, riskScore, DANGEROUS_EXT, safeAttachmentName,
   attachmentRisk, maskEmail, buildAuditMeta, buildSummarizeMessages, buildThreadSummaryMessages,
   buildDraftReplyMessages, buildExtractActionsMessages, buildEmailToTaskMessages, matchSearch,

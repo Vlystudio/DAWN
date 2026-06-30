@@ -408,6 +408,9 @@ export function registerIpc() {
 
   // --- Email workspace ---
   ipcMain.handle('email:presets', () => email.presets);
+  ipcMain.handle('email:providerGuides', () => email.providerGuides());
+  ipcMain.handle('email:testIncoming', (_e, cfg) => email.testIncoming(cfg || {}));
+  ipcMain.handle('email:testOutgoing', (_e, cfg) => email.testOutgoing(cfg || {}));
   ipcMain.handle('email:listAccounts', () => email.listAccounts());
   ipcMain.handle('email:getAccount', (_e, id) => email.getAccount(id));
   ipcMain.handle('email:createAccount', (_e, cfg) => email.createAccount(cfg || {}));

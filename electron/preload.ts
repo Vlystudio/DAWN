@@ -333,6 +333,9 @@ const api = {
   },
   email: {
     presets: () => ipcRenderer.invoke('email:presets'),
+    providerGuides: () => ipcRenderer.invoke('email:providerGuides'),
+    testIncoming: (cfg: any) => ipcRenderer.invoke('email:testIncoming', cfg),
+    testOutgoing: (cfg: any) => ipcRenderer.invoke('email:testOutgoing', cfg),
     listAccounts: () => ipcRenderer.invoke('email:listAccounts'),
     getAccount: (id: string) => ipcRenderer.invoke('email:getAccount', id),
     createAccount: (cfg: any) => ipcRenderer.invoke('email:createAccount', cfg),

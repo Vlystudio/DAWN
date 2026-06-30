@@ -24,6 +24,7 @@ import FeatureMaturityView from './components/FeatureMaturityView';
 import CommandPalette from './components/CommandPalette';
 import GlobalSearch from './components/GlobalSearch';
 import WorkspaceView from './components/WorkspaceView';
+import EmailSetupWizard from './components/EmailSetupWizard';
 import ObsidianView from './components/ObsidianView';
 import NotionView from './components/NotionView';
 import KnowledgeView from './components/KnowledgeView';
@@ -160,6 +161,7 @@ export default function App() {
       <UpdateToast />
       <CommandPalette onNav={setView} onNewChat={onNewChat} />
       <GlobalSearch onNav={setView} />
+      <EmailSetupWizard />
       <ApprovalModal />
       {locked ? <LockScreen totpEnabled={!!authStatus?.totpEnabled} onUnlocked={refreshAuth} /> : null}
     </>
