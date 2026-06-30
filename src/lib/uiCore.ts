@@ -24,6 +24,7 @@ export const ROUTES: RouteDef[] = [
   { key: 'tasks', label: 'Tasks', group: 'Workspace' },
   { key: 'calendar', label: 'Calendar', group: 'Workspace' },
   { key: 'email', label: 'Email', group: 'Workspace' },
+  { key: 'workspace', label: 'Workspace Graph', group: 'Workspace' },
   { key: 'memory', label: 'Memory', group: 'Knowledge' },
   { key: 'obsidian', label: 'Obsidian', group: 'Knowledge' },
   { key: 'notion', label: 'Notion', group: 'Knowledge' },

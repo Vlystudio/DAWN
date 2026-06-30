@@ -86,6 +86,7 @@ export const FEATURE_AREAS: FeatureArea[] = [
   { id: 'dashboard', name: 'Dashboard', group: 'Core', route: 'dashboard', summary: 'Home overview of the whole app.' },
   { id: 'chat', name: 'Chat', group: 'Core', route: 'chat', settingsRoute: 'settings', docs: 'README.md', summary: 'Streaming local chat with the model.' },
   { id: 'brain', name: 'Brain Explorer', group: 'Core', route: 'explorer', docs: 'ARCHITECTURE.md', summary: 'Data-driven 3D brain of your workspace.' },
+  { id: 'workspace', name: 'Workspace Graph', group: 'Core', route: 'workspace', docs: 'WORKSPACE_GRAPH.md', summary: 'Unified items + typed links across features.' },
   { id: 'memory', name: 'Memory', group: 'Knowledge', route: 'memory', summary: 'Durable, confirmed memories recalled in chat.' },
   { id: 'knowledge', name: 'Local Knowledge / RAG', group: 'Knowledge', route: 'localknowledge', settingsRoute: 'settings', docs: 'KNOWLEDGE_SETUP.md', summary: 'Index folders you approve; cited retrieval.' },
   { id: 'research', name: 'Deep Research', group: 'Core', route: 'research', docs: 'RESEARCH.md', summary: 'Plan → search → cite → report.' },
@@ -133,7 +134,8 @@ const EVAL: Record<string, Evaluator> = {
   chat: (s) => n(s.modelSelected ? 1 : 0) || s.runtimeInstalled
     ? { status: yes(s.modelSelected) ? 'COMPLETE' : 'BLOCKED_BY_SETUP', works: ['Streaming chat', 'Memory recall', 'Markdown + code copy'], missing: yes(s.modelSelected) ? [] : ['A selected model'], requiredSetup: yes(s.modelSelected) ? undefined : 'Pick or import a GGUF model in Model Hub/Manager.', nextAction: yes(s.modelSelected) ? undefined : 'Open Model Hub' }
     : { status: 'BLOCKED_BY_SETUP', works: ['Chat UI + streaming pipeline'], missing: ['llama.cpp runtime', 'a model'], requiredSetup: 'Install the llama.cpp runtime and a GGUF model.', nextAction: 'Open Model Hub' },
-  brain: (s) => ({ status: n(s.brainNodes) > 0 ? 'COMPLETE' : 'PARTIAL', works: ['3D/2D brain from real data', 'Click-to-inspect nodes'], missing: n(s.brainNodes) > 0 ? [] : ['No graph yet — use the app to populate it'], nextAction: n(s.brainNodes) > 0 ? undefined : 'Chat / add notes, then rebuild graph' }),
+  brain: (s) => ({ status: n(s.brainNodes) > 0 ? 'COMPLETE' : 'PARTIAL', works: ['3D/2D brain from real data', 'Click-to-inspect nodes', 'Workspace items injected as nodes'], missing: n(s.brainNodes) > 0 ? [] : ['No graph yet — use the app to populate it'], nextAction: n(s.brainNodes) > 0 ? undefined : 'Chat / add notes, then rebuild graph' }),
+  workspace: (s) => ({ status: 'COMPLETE', works: ['Typed items + links (services + DB + IPC + UI)', 'Cross-feature convert-to-task / save-as-note', 'In Global Search + Brain', `${n(s.workspaceItems)} items, ${n(s.workspaceLinks)} links`], missing: [] }),
   memory: (s) => ({ status: n(s.memories) > 0 ? 'COMPLETE' : 'PARTIAL', works: ['Add/edit/pin memories', 'Cited recall in chat'], missing: n(s.memories) > 0 ? [] : ['No memories saved yet'], nextAction: n(s.memories) > 0 ? undefined : 'Save a memory from chat' }),
   knowledge: (s) => n(s.indexedFolders) > 0
     ? { status: n(s.knowledgeChunks) > 0 ? 'COMPLETE' : 'PARTIAL', works: ['Folder indexing', 'Cited retrieval', s.embeddingsAvailable ? 'Embeddings' : 'Keyword fallback'], missing: n(s.knowledgeChunks) > 0 ? (s.embeddingsAvailable ? [] : ['Embedding model (using keyword fallback)']) : ['Index has no chunks yet'], nextAction: n(s.knowledgeChunks) > 0 ? undefined : 'Re-index your folders' }

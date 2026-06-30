@@ -34,6 +34,7 @@ export const SEARCH_SOURCES: SearchSource[] = [
   { type: 'event', label: 'Calendar', table: 'calendar_events', titleCol: 'title', snippetCol: 'location', route: 'calendar', orderBy: 'start_at DESC' },
   { type: 'research', label: 'Research', table: 'research_runs', titleCol: 'question', snippetCol: 'status', route: 'research', orderBy: 'started_at DESC' },
   { type: 'skill', label: 'Skill', table: 'skills', titleCol: 'name', snippetCol: 'description', route: 'skills' },
+  { type: 'workspace', label: 'Workspace', table: 'workspace_items', titleCol: 'label', snippetCol: 'type', route: 'workspace', orderBy: 'updated_at DESC' },
   // Email: subject + sender only (never the body — body is untrusted/sensitive).
   { type: 'email', label: 'Email', table: 'email_messages', titleCol: 'subject', snippetCol: 'from_name', route: 'email', orderBy: 'date DESC' },
 ];

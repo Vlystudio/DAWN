@@ -38,6 +38,7 @@ export const CLUSTERS: Record<string, { dir: [number, number, number]; color: st
   documents: { dir: [-0.2, 0.7, 0.75], color: 'green', title: 'Documents' },
   notes: { dir: [0.85, -0.55, -0.2], color: 'violet', title: 'Notes' },
   tasks: { dir: [-0.45, 0.85, -0.3], color: 'amber', title: 'Tasks' },
+  workspace: { dir: [0.2, 0.3, 0.95], color: 'teal', title: 'Workspace' },
 };
 
 const CLUSTER_RADIUS = 3.2;
@@ -457,6 +458,20 @@ export function rebuild() {
       if (restoreFailed) addEdge(id, 'core', 'restore_warning', 0.3);
     }
   } catch { /* security/backup tables not present */ }
+
+  // Workspace graph (Phase 2): real workspace items become nodes, links become edges.
+  try {
+    const wsItems = db.all('SELECT * FROM workspace_items ORDER BY updated_at DESC LIMIT 60');
+    const wsIds = new Set<string>(wsItems.map((i: any) => i.id));
+    for (const it of wsItems) {
+      const nid = `ws:${it.id}`;
+      const p = positionFor('workspace', nid);
+      addNode({ id: nid, type: 'workspace_item', title: truncate(it.label || it.type, 46), summary: `${it.type} · ${it.source_feature || ''}`.trim(), source_id: it.ref_id || it.id, color_group: 'teal', importance: 0.5, position_x: p[0], position_y: p[1], position_z: p[2], metadata_json: JSON.stringify({ itemType: it.type, sourceFeature: it.source_feature, workspaceItemId: it.id }) });
+      addEdge('cluster:workspace', nid, 'contains', 0.4);
+    }
+    const wsLinks = db.all('SELECT * FROM workspace_links LIMIT 200');
+    for (const l of wsLinks) if (wsIds.has(l.from_id) && wsIds.has(l.to_id)) addEdge(`ws:${l.from_id}`, `ws:${l.to_id}`, l.type, 0.5);
+  } catch { /* workspace tables not present */ }
 
   // Persist
   db.run('DELETE FROM brain_nodes');

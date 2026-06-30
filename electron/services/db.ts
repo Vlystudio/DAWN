@@ -265,6 +265,22 @@ CREATE TABLE IF NOT EXISTS logs (
 CREATE TABLE IF NOT EXISTS feature_maturity (
   id TEXT PRIMARY KEY, status TEXT, last_checked INTEGER, last_error TEXT, detail TEXT
 );
+
+-- Workspace Graph: unified items + typed links across features (Phase 2) -------
+CREATE TABLE IF NOT EXISTS workspace_items (
+  id TEXT PRIMARY KEY, type TEXT NOT NULL, ref_id TEXT, label TEXT, source_feature TEXT,
+  metadata TEXT, created_at INTEGER, updated_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_ws_items_type ON workspace_items(type);
+CREATE INDEX IF NOT EXISTS idx_ws_items_ref ON workspace_items(ref_id);
+CREATE INDEX IF NOT EXISTS idx_ws_items_updated ON workspace_items(updated_at);
+CREATE TABLE IF NOT EXISTS workspace_links (
+  id TEXT PRIMARY KEY, from_id TEXT NOT NULL, to_id TEXT NOT NULL, type TEXT NOT NULL,
+  metadata TEXT, created_at INTEGER,
+  UNIQUE(from_id, to_id, type)
+);
+CREATE INDEX IF NOT EXISTS idx_ws_links_from ON workspace_links(from_id);
+CREATE INDEX IF NOT EXISTS idx_ws_links_to ON workspace_links(to_id);
 `;
 
 function locateWasm(): string {

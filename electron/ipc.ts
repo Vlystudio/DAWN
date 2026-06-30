@@ -41,6 +41,10 @@ import fileAgent from './services/fileAgent';
 import featureMaturity from './services/featureMaturity';
 import globalSearch from './services/globalSearch';
 import diagnostics from './services/diagnostics';
+import wsItems from './services/workspace/items';
+import wsLinks from './services/workspace/links';
+import wsSearch from './services/workspace/search';
+import workspace from './services/workspace/workspace';
 import db from './services/db';
 import * as pathlib from 'path';
 
@@ -574,6 +578,20 @@ export function registerIpc() {
 
   // --- Global Search (never searches vault/auth/audit; snippets redacted) ---
   ipcMain.handle('search:query', (_e, term) => globalSearch.query(String(term || '')));
+
+  // --- Workspace Graph (items + typed links across features) ---
+  ipcMain.handle('workspace:items:list', (_e, opts) => wsItems.list(opts || {}));
+  ipcMain.handle('workspace:items:get', (_e, id) => wsItems.get(String(id || '')));
+  ipcMain.handle('workspace:items:create', (_e, input) => wsItems.create(input || {}));
+  ipcMain.handle('workspace:items:update', (_e, { id, patch }) => wsItems.update(String(id || ''), patch || {}));
+  ipcMain.handle('workspace:items:delete', (_e, id) => wsItems.remove(String(id || '')));
+  ipcMain.handle('workspace:links:list', (_e, itemId) => wsLinks.listForItem(String(itemId || '')));
+  ipcMain.handle('workspace:links:create', (_e, input) => wsLinks.create(input || {}));
+  ipcMain.handle('workspace:links:delete', (_e, id) => wsLinks.remove(String(id || '')));
+  ipcMain.handle('workspace:related:get', (_e, itemId) => wsLinks.related(String(itemId || '')));
+  ipcMain.handle('workspace:search', (_e, q) => wsSearch.search(q || {}));
+  ipcMain.handle('workspace:convertToTask', (_e, itemId) => workspace.convertToTask(String(itemId || '')));
+  ipcMain.handle('workspace:saveAsNote', (_e, input) => workspace.saveAsNote(input || {}));
 
   // --- Diagnostics (redacted bundle; export to a user-chosen file) ---
   ipcMain.handle('diagnostics:bundle', () => diagnostics.bundle());

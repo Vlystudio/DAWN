@@ -65,6 +65,7 @@
     "tests/contract.test.ts",
     "tests/featureMaturity.test.ts",
     "tests/globalSearch.test.ts",
-    "tests/diagnostics.test.ts"
+    "tests/diagnostics.test.ts",
+    "tests/workspaceGraph.test.ts"
   ]
 }

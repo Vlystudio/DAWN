@@ -384,6 +384,20 @@ const api = {
   search: {
     query: (term: string) => ipcRenderer.invoke('search:query', term),
   },
+  workspace: {
+    listItems: (opts?: any) => ipcRenderer.invoke('workspace:items:list', opts),
+    getItem: (id: string) => ipcRenderer.invoke('workspace:items:get', id),
+    createItem: (input: any) => ipcRenderer.invoke('workspace:items:create', input),
+    updateItem: (id: string, patch: any) => ipcRenderer.invoke('workspace:items:update', { id, patch }),
+    deleteItem: (id: string) => ipcRenderer.invoke('workspace:items:delete', id),
+    listLinks: (itemId: string) => ipcRenderer.invoke('workspace:links:list', itemId),
+    createLink: (input: any) => ipcRenderer.invoke('workspace:links:create', input),
+    deleteLink: (id: string) => ipcRenderer.invoke('workspace:links:delete', id),
+    related: (itemId: string) => ipcRenderer.invoke('workspace:related:get', itemId),
+    search: (q: any) => ipcRenderer.invoke('workspace:search', q),
+    convertToTask: (itemId: string) => ipcRenderer.invoke('workspace:convertToTask', itemId),
+    saveAsNote: (input: any) => ipcRenderer.invoke('workspace:saveAsNote', input),
+  },
   diagnostics: {
     bundle: () => ipcRenderer.invoke('diagnostics:bundle'),
     summary: () => ipcRenderer.invoke('diagnostics:summary'),
