@@ -68,6 +68,23 @@ export default function KnowledgeView() {
         <Stat label="Chunks" value={status.totals.chunks} />
       </div>
 
+      {status.embedding ? (
+        <div className="text-[11px] text-faint mb-2">
+          Retrieval: <span className="text-dim">{status.embedding.mode === 'embeddings' ? 'embeddings' : status.embedding.mode === 'keyword fallback' ? 'keyword fallback (local hash — no neural embedding model)' : 'not indexed yet'}</span>
+          {status.embedding.configuredModel ? <span> · model {status.embedding.configuredModel}</span> : null}
+        </div>
+      ) : null}
+      {status.skipped && Object.keys(status.skipped).length > 0 ? (
+        <div className="text-[11px] text-faint mb-3 border border-border/60 rounded-lg p-2 bg-panel/20">
+          <span className="text-dim">Skipped for safety</span> (DAWN never indexes secrets/keys/caches):
+          <ul className="mt-1 space-y-0.5">
+            {Object.entries(status.skipped as Record<string, number>).slice(0, 8).map(([reason, count]) => (
+              <li key={reason} className="flex justify-between gap-2"><span className="truncate">{reason}</span><span className="text-neural-amber shrink-0">{count}</span></li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
       <div className="flex flex-wrap gap-2 mb-3">
         <Button variant="primary" onClick={addFolder} disabled={status.indexing}><FolderPlus size={15} /> Add folder</Button>
         <Button variant="default" onClick={() => window.dawn.rag.index()} disabled={status.indexing || status.folders.length === 0}><RefreshCw size={15} /> Re-index</Button>

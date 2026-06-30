@@ -28,6 +28,8 @@ export const ADAPTER_DEFS: AdapterDef[] = [
   { feature: 'research', type: 'research_run', table: 'research_runs', idCol: 'id', labelCols: ['question'], snippetCols: ['status'], updatedCols: ['started_at', 'created_at'], metaCols: ['status'] },
   { feature: 'benchmark', type: 'benchmark', table: 'benchmarks', idCol: 'id', labelCols: ['model_name'], snippetCols: ['status'], updatedCols: ['created_at', 'started_at'], metaCols: ['status', 'quant'] },
   { feature: 'email', type: 'email_account', table: 'email_accounts', idCol: 'id', labelCols: ['label', 'email_address'], updatedCols: ['updated_at', 'created_at'] },
+  // Knowledge sources: label by name only (never the full path), metadata = status/kind only.
+  { feature: 'knowledge', type: 'knowledge_source', table: 'knowledge_sources', idCol: 'id', labelCols: ['name'], updatedCols: ['added_at'], metaCols: ['status', 'kind'] },
 ];
 
 export interface MappedItem { type: ItemType; refId: string; label: string; sourceFeature: string; metadata: string; updatedAt: number }

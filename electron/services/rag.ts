@@ -8,6 +8,7 @@ import logger from './logger';
 import embeddings from './embeddings';
 import parsers from './parsers';
 import safety from './safety';
+import guard from './knowledge/knowledgeGuardCore';
 import { chunkText } from './chunk';
 
 /**
@@ -25,6 +26,7 @@ class Rag extends EventEmitter {
   current = 0;
   total = 0;
   currentFile = '';
+  lastSkips: Record<string, number> = {}; // skip reason → count, from the most recent scan
 
   private allowedExts(): string[] {
     return Array.from(parsers.TEXT_EXT);
@@ -57,6 +59,8 @@ class Rag extends EventEmitter {
     const allowed = this.allowedExts();
     const out: any[] = [];
     const stack = [folder];
+    const skip = (reason: string) => { this.lastSkips[reason] = (this.lastSkips[reason] || 0) + 1; };
+    this.lastSkips = {};
     while (stack.length) {
       const dir = stack.pop()!;
       let entries: fs.Dirent[];
@@ -68,15 +72,15 @@ class Rag extends EventEmitter {
       for (const e of entries) {
         const full = path.join(dir, e.name);
         if (e.isDirectory()) {
-          if (!safety.isBlockedDir(e.name)) stack.push(full);
-        } else if (e.isFile() && !safety.isBlockedFile(full, allowed)) {
+          const dv = guard.classifyDir(e.name);
+          if (dv.blocked || safety.isBlockedDir(e.name)) { skip(dv.reason || 'protected directory'); continue; }
+          stack.push(full);
+        } else if (e.isFile()) {
+          if (safety.isBlockedFile(full, allowed)) { skip('credential/secret/vault/auth file'); continue; }
           let st: fs.Stats;
-          try {
-            st = fs.statSync(full);
-          } catch {
-            continue;
-          }
-          if (st.size > 5 * 1024 * 1024) continue; // skip >5MB
+          try { st = fs.statSync(full); } catch { continue; }
+          const v = guard.classifyFile(full, st.size);
+          if (!v.index) { skip(v.reason || 'skipped'); continue; }
           out.push({ path: full, name: e.name, size: st.size, mtime: st.mtimeMs });
         }
       }
@@ -193,7 +197,13 @@ class Rag extends EventEmitter {
       path: f,
       files: db.get<{ c: number }>('SELECT COUNT(*) c FROM knowledge_sources WHERE path LIKE ?', [f + '%'])!.c,
     }));
-    return { indexing: this.indexing, paused: this.paused, current: this.current, total: this.total, currentFile: this.currentFile, folders, totals: { files, chunks } };
+    const embeddedChunks = (() => { try { return db.get<{ c: number }>('SELECT COUNT(*) c FROM knowledge_chunks WHERE embedding IS NOT NULL')!.c; } catch { return 0; } })();
+    const embedModel = (() => { try { return settings.get().embedModel || ''; } catch { return ''; } })();
+    return {
+      indexing: this.indexing, paused: this.paused, current: this.current, total: this.total, currentFile: this.currentFile, folders, totals: { files, chunks },
+      skipped: this.lastSkips,
+      embedding: { configuredModel: embedModel, embeddedChunks, mode: embeddedChunks > 0 ? 'embeddings' : (chunks > 0 ? 'keyword fallback' : 'none yet') },
+    };
   }
 }
 
