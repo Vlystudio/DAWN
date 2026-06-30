@@ -55,6 +55,7 @@ export default function CommandPalette({ onNav, onNewChat }: { onNav: (view: str
       { id: 'add-note', label: 'New note', group: 'Actions', keywords: 'jot', run: () => go('notes') },
       { id: 'add-task', label: 'New task', group: 'Actions', keywords: 'todo', run: () => go('tasks') },
       { id: 'run-benchmark', label: 'Benchmark / Compare models', group: 'Actions', keywords: 'speed tok/s arena', run: () => go('compare') },
+      { id: 'model-cookbook', label: 'Open Model Cookbook', group: 'Actions', keywords: 'best for coding reasoning fit vram', run: () => go('cookbook') },
       { id: 'open-workspace', label: 'Open Workspace Graph', group: 'Actions', keywords: 'items links related', run: () => go('workspace') },
       { id: 'open-health', label: 'Open System Health', group: 'Actions', keywords: 'status maturity diagnostics', run: () => go('health') },
       { id: 'open-setup', label: 'Open Setup Center', group: 'Actions', keywords: 'onboarding configure checklist', run: () => go('setup') },

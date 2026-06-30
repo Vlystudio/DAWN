@@ -47,6 +47,7 @@ import wsSearch from './services/workspace/search';
 import workspace from './services/workspace/workspace';
 import wsRegistry from './services/workspace/registry';
 import chatActions from './services/workspace/chatActions';
+import modelCookbook from './services/optimizer/modelCookbook';
 import db from './services/db';
 import * as pathlib from 'path';
 
@@ -264,6 +265,7 @@ export function registerIpc() {
   ipcMain.handle('optimizer:reoptimizeNeeded', (_e, modelId) => optimizer.reoptimizeNeeded(modelId));
   ipcMain.handle('optimizer:recommendForTask', (_e, task) => optimizer.recommendForTask(task));
   ipcMain.handle('optimizer:name', (_e, id) => optimizer.nameFor(id));
+  ipcMain.handle('models:cookbook', () => modelCookbook.cookbook());
   ipcMain.handle('optimizer:names', (_e, ids) => optimizer.namesFor(ids || []));
 
   // --- Deep Research mode ---

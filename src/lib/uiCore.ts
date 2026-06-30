@@ -17,6 +17,7 @@ export const ROUTES: RouteDef[] = [
   { key: 'vision', label: 'Live Vision', group: 'Core' },
   { key: 'hub', label: 'Model Hub', group: 'Models' },
   { key: 'optimizer', label: 'Optimizer', group: 'Models' },
+  { key: 'cookbook', label: 'Model Cookbook', group: 'Models' },
   { key: 'compare', label: 'Compare', group: 'Models' },
   { key: 'models', label: 'Models', group: 'Models' },
   { key: 'documents', label: 'Documents', group: 'Workspace' },

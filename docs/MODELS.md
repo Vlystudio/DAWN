@@ -44,3 +44,26 @@ access”** (open the HF page, accept the license / pick a repo, then **Import**
 | 14B | ~10–11 GB | ~13 GB |
 | 32B | ~20–22 GB (partial offload on 16 GB) | ~27 GB |
 | 72B | ~47 GB (CPU+GPU split) | — |
+
+## Model Cookbook
+
+**Sidebar → Models → Model Cookbook** (or the "Open Model Cookbook" command).
+
+The cookbook answers "which installed model is best for what, and will it run on my hardware" — using
+**real data only**, never fabricated:
+
+- **Best for each role** (Fast chat / Coding / Reasoning / Research / Long context / Embeddings /
+  Vision) — derived from catalog role metadata + the optimizer's compatibility analysis. A role card
+  only appears if a real installed model fits it.
+- **Hardware fit label** per model from real compatibility scoring: *Fits in VRAM · Partial offload ·
+  CPU fallback · Too large / not recommended · Unknown hardware*. If GPU/VRAM isn't detected it says
+  **Unknown hardware** (it never guesses a fit).
+- **Speed** shows the latest **real** benchmark tok/s, or **Needs benchmark** if you haven't run one.
+- **Why** explains honestly: recommended (fits), may be slower (partial offload), not recommended
+  (doesn't fit), or hardware-not-detected.
+
+Apply recommended settings in the **Optimizer** (the cookbook is read-only; the Optimizer applies, and
+never silently applies risky settings — manual override remains available).
+
+Backend: `electron/services/optimizer/modelCookbook.ts` over the pure, tested `modelCookbookCore.ts`
+(role normalization, fit labels, best-per-role). IPC `models:cookbook`.

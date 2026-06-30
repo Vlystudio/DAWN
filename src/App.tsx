@@ -26,6 +26,7 @@ import GlobalSearch from './components/GlobalSearch';
 import WorkspaceView from './components/WorkspaceView';
 import EmailSetupWizard from './components/EmailSetupWizard';
 import SetupCenterView from './components/SetupCenterView';
+import ModelCookbookView from './components/ModelCookbookView';
 import ObsidianView from './components/ObsidianView';
 import NotionView from './components/NotionView';
 import KnowledgeView from './components/KnowledgeView';
@@ -148,6 +149,7 @@ export default function App() {
           {view === 'notion' && <NotionView />}
           {view === 'hub' && <ModelHub />}
           {view === 'optimizer' && <ModelOptimizer />}
+          {view === 'cookbook' && <ModelCookbookView onNav={setView} />}
           {view === 'models' && <ModelManager />}
           {view === 'knowledge' && <KnowledgeView />}
           {view === 'localknowledge' && <LocalKnowledgePanel />}

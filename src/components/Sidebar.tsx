@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { MessageSquare, Network, Brain, Database, ScrollText, Settings as SettingsIcon, Plus, Search, Pin, X, HardDrive, DownloadCloud, BookMarked, NotebookText, Eye, Library, Code2, Gauge, Telescope, Swords, FileText, StickyNote, CheckSquare, CalendarDays, Sparkles, ShieldCheck, Mail, Archive, LayoutDashboard, Activity, Share2, ListChecks } from 'lucide-react';
+import { MessageSquare, Network, Brain, Database, ScrollText, Settings as SettingsIcon, Plus, Search, Pin, X, HardDrive, DownloadCloud, BookMarked, NotebookText, Eye, Library, Code2, Gauge, Telescope, Swords, FileText, StickyNote, CheckSquare, CalendarDays, Sparkles, ShieldCheck, Mail, Archive, LayoutDashboard, Activity, Share2, ListChecks, BookOpen } from 'lucide-react';
 import { cn } from '../lib/cn';
 import PowerSwitch from './PowerSwitch';
 import { StatusDot } from './hud';
@@ -20,6 +20,7 @@ const NAV_GROUPS: { title?: string; items: { key: string; label: string; icon: a
   { title: 'Models', items: [
     { key: 'hub', label: 'Model Hub', icon: DownloadCloud },
     { key: 'optimizer', label: 'Optimizer', icon: Gauge },
+    { key: 'cookbook', label: 'Model Cookbook', icon: BookOpen },
     { key: 'compare', label: 'Compare', icon: Swords },
     { key: 'models', label: 'Models', icon: HardDrive },
   ] },

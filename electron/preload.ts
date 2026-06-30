@@ -19,6 +19,7 @@ const api = {
     onLog: (cb: (p: any) => void) => sub('runtime:log', cb),
   },
   models: {
+    cookbook: () => ipcRenderer.invoke('models:cookbook'),
     list: () => ipcRenderer.invoke('model:list'),
     import: () => ipcRenderer.invoke('model:import'),
     select: (p: string) => ipcRenderer.invoke('model:select', p),

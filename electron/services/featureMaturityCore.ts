@@ -102,6 +102,7 @@ export const FEATURE_AREAS: FeatureArea[] = [
   { id: 'hub', name: 'Model Hub', group: 'Models', route: 'hub', docs: 'MODELS.md', summary: 'Browse + download GGUF models.' },
   { id: 'models', name: 'Model Manager', group: 'Models', route: 'models', docs: 'MODELS.md', summary: 'Installed models: import/select/remove.' },
   { id: 'optimizer', name: 'Model Optimizer', group: 'Models', route: 'optimizer', docs: 'MODEL_OPTIMIZER.md', summary: 'Hardware-aware per-model settings.' },
+  { id: 'cookbook', name: 'Model Cookbook', group: 'Models', route: 'cookbook', docs: 'MODELS.md', summary: 'Best model per role + honest hardware fit.' },
   { id: 'benchmark', name: 'Benchmarking', group: 'Models', route: 'compare', docs: 'MODEL_OPTIMIZER.md', summary: 'tok/s + load time; best-for-this-PC.' },
   { id: 'tools', name: 'Tool Gateway', group: 'Tools', route: 'skills', settingsRoute: 'settings', docs: 'SKILLS.md', summary: 'Typed tools with risk + approval + audit.' },
   { id: 'skills', name: 'Skills', group: 'Tools', route: 'skills', docs: 'SKILLS.md', summary: 'User automations scoped to allowed tools.' },
@@ -159,6 +160,9 @@ const EVAL: Record<string, Evaluator> = {
   hub: (s) => ({ status: 'COMPLETE', works: ['Catalog + GPU fit', 'Resumable downloads'], missing: n(s.modelCount) > 0 ? [] : ['No models installed yet'], nextAction: n(s.modelCount) > 0 ? undefined : 'Download a model' }),
   models: (s) => ({ status: n(s.modelCount) > 0 ? 'COMPLETE' : 'BLOCKED_BY_SETUP', works: ['Import/select/remove', 'Size + RAM estimate'], missing: n(s.modelCount) > 0 ? [] : ['No GGUF installed'], requiredSetup: n(s.modelCount) > 0 ? undefined : 'Download or import a GGUF model.', nextAction: n(s.modelCount) > 0 ? undefined : 'Open Model Hub' }),
   optimizer: (s) => ({ status: n(s.modelCount) > 0 ? 'COMPLETE' : 'BLOCKED_BY_SETUP', works: ['Hardware-aware presets', 'Apply & load'], missing: n(s.modelCount) > 0 ? [] : ['Needs an installed model'], nextAction: n(s.modelCount) > 0 ? undefined : 'Install a model' }),
+  cookbook: (s) => n(s.modelCount) > 0
+    ? { status: 'COMPLETE', works: ['Best model per role (fast/coding/reasoning/research)', 'Honest hardware-fit labels (real compatibility)', 'Real benchmark tok/s + "Needs benchmark"', 'Never fakes models/benchmarks/hardware'], missing: [] }
+    : { status: 'BLOCKED_BY_SETUP', works: ['Cookbook engine (roles + fit + recommendations)'], missing: ['No installed models'], requiredSetup: 'Install a GGUF model.', nextAction: 'Open Model Hub' },
   benchmark: (s) => ({ status: n(s.benchmarkCount) > 0 ? 'COMPLETE' : 'PARTIAL', works: ['tok/s + load time', 'Historical compare'], missing: n(s.benchmarkCount) > 0 ? [] : ['No benchmark runs yet'], nextAction: n(s.benchmarkCount) > 0 ? undefined : 'Run a benchmark' }),
   tools: (s) => ({ status: yes(s.toolsEnabled) ? 'COMPLETE' : 'BLOCKED_BY_SETUP', works: ['Typed risk levels', 'Approval gateway', 'Audit log'], missing: yes(s.toolsEnabled) ? [] : ['Tools disabled in Settings'], requiredSetup: yes(s.toolsEnabled) ? undefined : 'Enable Tools in Settings.', nextAction: yes(s.toolsEnabled) ? undefined : 'Open Settings → Tools' }),
   skills: (s) => ({ status: n(s.skills) > 0 ? 'COMPLETE' : 'PARTIAL', works: ['Scoped to allowed tools', 'Test with sample input', 'Audit'], missing: n(s.skills) > 0 ? [] : ['No skills created yet'], nextAction: n(s.skills) > 0 ? undefined : 'Create a skill' }),

@@ -70,6 +70,7 @@
     "tests/emailSetup.test.ts",
     "tests/workspaceAutoReg.test.ts",
     "tests/routeConsistency.test.ts",
-    "tests/workspacePicker.test.ts"
+    "tests/workspacePicker.test.ts",
+    "tests/modelCookbook.test.ts"
   ]
 }
