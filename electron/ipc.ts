@@ -46,6 +46,7 @@ import wsLinks from './services/workspace/links';
 import wsSearch from './services/workspace/search';
 import workspace from './services/workspace/workspace';
 import wsRegistry from './services/workspace/registry';
+import chatActions from './services/workspace/chatActions';
 import db from './services/db';
 import * as pathlib from 'path';
 
@@ -598,6 +599,13 @@ export function registerIpc() {
   ipcMain.handle('workspace:saveAsNote', (_e, input) => workspace.saveAsNote(input || {}));
   ipcMain.handle('workspace:reconcile', () => wsRegistry.reconcile());
   ipcMain.handle('workspace:coverage', () => wsRegistry.coverage());
+
+  // --- Chat cross-feature actions (real message → note/task/document/memory, linked) ---
+  ipcMain.handle('chat:message:saveAsNote', (_e, messageId) => chatActions.saveAsNote(String(messageId || '')));
+  ipcMain.handle('chat:message:createTask', (_e, messageId) => chatActions.createTask(String(messageId || '')));
+  ipcMain.handle('chat:message:createDocument', (_e, messageId) => chatActions.createDocument(String(messageId || '')));
+  ipcMain.handle('chat:message:saveAsMemory', (_e, messageId) => chatActions.saveAsMemory(String(messageId || '')));
+  ipcMain.handle('chat:message:linkItem', (_e, { messageId, targetItemId, type }) => chatActions.linkItem(String(messageId || ''), String(targetItemId || ''), type));
 
   // --- Diagnostics (redacted bundle; export to a user-chosen file) ---
   ipcMain.handle('diagnostics:bundle', () => diagnostics.bundle());

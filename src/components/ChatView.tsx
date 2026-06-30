@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { RotateCw, Copy, Brain as BrainIcon, Volume2, VolumeX, Square, BookMarked } from 'lucide-react';
+import { RotateCw, Copy, Brain as BrainIcon, Volume2, VolumeX, Square, BookMarked, StickyNote, CheckSquare, FileText, ArrowRight } from 'lucide-react';
 import Markdown from './Markdown';
 import Composer from './Composer';
 import AIBrainScene from '../brain/AIBrainScene';
@@ -28,12 +28,20 @@ export default function ChatView({
   setSelectedId,
   onConvChange,
   onOpenExplorer,
+  onNav,
 }: {
   selectedId: string | null;
   setSelectedId: (id: string | null) => void;
   onConvChange: () => void;
   onOpenExplorer: () => void;
+  onNav?: (view: string) => void;
 }) {
+  const [actMsg, setActMsg] = useState<{ id: string; text: string; route?: string } | null>(null);
+  const doMsgAction = async (messageId: string, p: Promise<any>, ok: string) => {
+    try { const r = await p; setActMsg({ id: messageId, text: r?.ok ? ok : (r?.error || 'Action failed'), route: r?.ok ? r.route : undefined }); }
+    catch (e: any) { setActMsg({ id: messageId, text: String(e?.message || e) }); }
+    setTimeout(() => setActMsg((a) => (a && a.id === messageId ? null : a)), 7000);
+  };
   const [conv, setConv] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [models, setModels] = useState<any[]>([]);
@@ -280,13 +288,25 @@ export default function ChatView({
                         <RotateCw size={12} /> Regenerate
                       </button>
                     ) : null}
-                    <button
-                      className="text-xs text-faint hover:text-ink inline-flex items-center gap-1"
-                      onClick={() => { if (confirm('Save this as a durable memory?\n\n' + m.content.slice(0, 200))) window.dawn.memory.add(m.content, 'creative_idea'); }}
-                    >
+                    <button className="text-xs text-faint hover:text-ink inline-flex items-center gap-1" onClick={() => doMsgAction(m.id, (window as any).dawn.chat.saveMessageAsNote(m.id), 'Saved as note')}>
+                      <StickyNote size={12} /> Note
+                    </button>
+                    <button className="text-xs text-faint hover:text-ink inline-flex items-center gap-1" onClick={() => doMsgAction(m.id, (window as any).dawn.chat.createTaskFromMessage(m.id), 'Task created')}>
+                      <CheckSquare size={12} /> Task
+                    </button>
+                    <button className="text-xs text-faint hover:text-ink inline-flex items-center gap-1" onClick={() => doMsgAction(m.id, (window as any).dawn.chat.createDocumentFromMessage(m.id), 'Document created')}>
+                      <FileText size={12} /> Doc
+                    </button>
+                    <button className="text-xs text-faint hover:text-ink inline-flex items-center gap-1" onClick={() => doMsgAction(m.id, (window as any).dawn.chat.saveMessageAsMemory(m.id), 'Saved to memory')}>
                       <BrainIcon size={12} /> Remember
                     </button>
                   </div>
+                  {actMsg && actMsg.id === m.id ? (
+                    <div className="mt-1.5 text-[11px] text-neural-green inline-flex items-center gap-2">
+                      {actMsg.text}
+                      {actMsg.route && onNav ? <button onClick={() => onNav(actMsg.route!)} className="text-faint hover:text-ink inline-flex items-center gap-0.5 underline-offset-2 hover:underline">Open <ArrowRight size={10} /></button> : null}
+                    </div>
+                  ) : null}
                 </div>
               )}
             </div>

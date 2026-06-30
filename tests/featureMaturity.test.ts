@@ -60,6 +60,12 @@ test('palette + search flip MISSING -> COMPLETE once implemented', () => {
   assert.equal(evaluateArea('search', { globalSearch: true }).status, 'COMPLETE');
 });
 
+test('new areas (workspace auto-reg, chat actions) are catalogued and COMPLETE when wired', () => {
+  assert.equal(evaluateArea('workspace_autoreg', { workspaceRegistered: 2 }).status, 'COMPLETE');
+  assert.equal(evaluateArea('chat_actions').status, 'COMPLETE');
+  assert.ok(FEATURE_AREAS.find((a) => a.id === 'chat_actions'));
+});
+
 test('evaluateAll covers the whole catalog and summarize is sane', () => {
   const reports = evaluateAll({});
   assert.equal(reports.length, FEATURE_AREAS.length);

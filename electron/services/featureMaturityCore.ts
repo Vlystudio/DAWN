@@ -85,6 +85,7 @@ const yes = (b?: boolean) => b === true;
 export const FEATURE_AREAS: FeatureArea[] = [
   { id: 'dashboard', name: 'Dashboard', group: 'Core', route: 'dashboard', summary: 'Home overview of the whole app.' },
   { id: 'chat', name: 'Chat', group: 'Core', route: 'chat', settingsRoute: 'settings', docs: 'README.md', summary: 'Streaming local chat with the model.' },
+  { id: 'chat_actions', name: 'Chat Cross-Feature Actions', group: 'Core', route: 'chat', docs: 'CHAT_ACTIONS.md', summary: 'Turn a reply into a note/task/doc/memory, linked.' },
   { id: 'brain', name: 'Brain Explorer', group: 'Core', route: 'explorer', docs: 'ARCHITECTURE.md', summary: 'Data-driven 3D brain of your workspace.' },
   { id: 'workspace', name: 'Workspace Graph', group: 'Core', route: 'workspace', docs: 'WORKSPACE_GRAPH.md', summary: 'Unified items + typed links across features.' },
   { id: 'workspace_autoreg', name: 'Workspace Auto-Registration', group: 'Core', route: 'workspace', docs: 'WORKSPACE_GRAPH.md', summary: 'Real feature rows auto-register as items.' },
@@ -136,6 +137,7 @@ const EVAL: Record<string, Evaluator> = {
     ? { status: yes(s.modelSelected) ? 'COMPLETE' : 'BLOCKED_BY_SETUP', works: ['Streaming chat', 'Memory recall', 'Markdown + code copy'], missing: yes(s.modelSelected) ? [] : ['A selected model'], requiredSetup: yes(s.modelSelected) ? undefined : 'Pick or import a GGUF model in Model Hub/Manager.', nextAction: yes(s.modelSelected) ? undefined : 'Open Model Hub' }
     : { status: 'BLOCKED_BY_SETUP', works: ['Chat UI + streaming pipeline'], missing: ['llama.cpp runtime', 'a model'], requiredSetup: 'Install the llama.cpp runtime and a GGUF model.', nextAction: 'Open Model Hub' },
   brain: (s) => ({ status: n(s.brainNodes) > 0 ? 'COMPLETE' : 'PARTIAL', works: ['3D/2D brain from real data', 'Click-to-inspect nodes', 'Workspace items injected as nodes'], missing: n(s.brainNodes) > 0 ? [] : ['No graph yet — use the app to populate it'], nextAction: n(s.brainNodes) > 0 ? undefined : 'Chat / add notes, then rebuild graph' }),
+  chat_actions: () => ({ status: 'COMPLETE', works: ['Reply → Note / Task / Document / Memory', 'Each links created_from the conversation', 'Created item shows in Global Search + Brain'], missing: [] }),
   workspace: (s) => ({ status: 'COMPLETE', works: ['Typed items + links (services + DB + IPC + UI)', 'Cross-feature convert-to-task / save-as-note', 'In Global Search + Brain', `${n(s.workspaceItems)} items, ${n(s.workspaceLinks)} links`], missing: [] }),
   workspace_autoreg: (s) => ({ status: 'COMPLETE', works: ['8 real sources (chat/memory/notes/tasks/documents/research/benchmark/email)', 'Idempotent upsert + orphan pruning', 'Runs on Workspace open + Brain rebuild', `${n(s.workspaceRegistered)} registered`], missing: [] }),
   memory: (s) => ({ status: n(s.memories) > 0 ? 'COMPLETE' : 'PARTIAL', works: ['Add/edit/pin memories', 'Cited recall in chat'], missing: n(s.memories) > 0 ? [] : ['No memories saved yet'], nextAction: n(s.memories) > 0 ? undefined : 'Save a memory from chat' }),

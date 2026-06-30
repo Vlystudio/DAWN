@@ -127,6 +127,7 @@ export default function App() {
               setSelectedId={setSelectedId}
               onConvChange={() => refreshConvs()}
               onOpenExplorer={() => setView('explorer')}
+              onNav={setView}
             />
           )}
           {view === 'explorer' && <BrainExplorer onOpenConversation={openConversation} />}
