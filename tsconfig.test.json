@@ -73,6 +73,7 @@
     "tests/workspacePicker.test.ts",
     "tests/modelCookbook.test.ts",
     "tests/knowledgeGuard.test.ts",
-    "tests/sourceState.test.ts"
+    "tests/sourceState.test.ts",
+    "tests/citation.test.ts"
   ]
 }

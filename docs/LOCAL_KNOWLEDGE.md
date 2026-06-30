@@ -74,3 +74,14 @@ sourceStateCore.ts`): `pending → validating → indexing → indexed`, plus `s
 `removed`. The Local Knowledge page shows **indexed / failed / stale** counts; System Health surfaces
 failed-source counts and the honest gap (per-file stale detection + full citation precision are
 incremental). Removed/skipped sources don't surface as active workspace/search results.
+
+## Citation metadata (honest precision)
+
+When DAWN retrieves a chunk it now attaches a **citation** (`knowledge/citationCore.ts`) built from
+**real data only**: file name (path is never exposed — file name only), source type, **chunk index**
+(real, since chunking exists), content/retrieval mode. It reports a **precision** —
+`file-level` / `chunk-level` (and `page-level` / `section-level` / `row-level` / `line-level` only if
+a parser genuinely provides them) — and lists exactly which fields are **available** vs **not
+available**. DAWN's text/markdown/CSV parsers don't currently extract page numbers or section
+headings, so those are honestly shown as **"not available"** — never faked. If/when a PDF parser
+provides real pages, the citation will include them automatically.

@@ -10,6 +10,7 @@ import parsers from './parsers';
 import safety from './safety';
 import guard from './knowledge/knowledgeGuardCore';
 import sourceState from './knowledge/sourceStateCore';
+import citationCore from './knowledge/citationCore';
 import { chunkText } from './chunk';
 
 /**
@@ -200,8 +201,11 @@ class Rag extends EventEmitter {
       if (score >= (s.ragMinScore || 0)) scored.push({ r, score });
     }
     scored.sort((a, b) => b.score - a.score);
+    const mode = (() => { try { return db.get<{ c: number }>('SELECT COUNT(*) c FROM knowledge_chunks WHERE embedding IS NOT NULL')!.c > 0 ? 'embeddings' : 'keyword fallback'; } catch { return 'keyword fallback'; } })();
     return scored.slice(0, k).map(({ r, score }) => ({
       name: r.name, path: r.path, chunkIndex: r.chunk_index, content: r.content, score: Number(score.toFixed(3)),
+      // Honest citation: chunk-level (we have a chunk index), file name only, page/section NOT faked.
+      citation: citationCore.buildCitation({ name: r.name, path: r.path, sourceType: 'file', chunkIndex: r.chunk_index, retrievalMode: mode }),
     }));
   }
 
