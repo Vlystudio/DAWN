@@ -400,6 +400,8 @@ const api = {
     search: (q: any) => ipcRenderer.invoke('workspace:search', q),
     convertToTask: (itemId: string) => ipcRenderer.invoke('workspace:convertToTask', itemId),
     saveAsNote: (input: any) => ipcRenderer.invoke('workspace:saveAsNote', input),
+    reconcile: () => ipcRenderer.invoke('workspace:reconcile'),
+    coverage: () => ipcRenderer.invoke('workspace:coverage'),
   },
   diagnostics: {
     bundle: () => ipcRenderer.invoke('diagnostics:bundle'),

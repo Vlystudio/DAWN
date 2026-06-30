@@ -27,13 +27,18 @@ export default function WorkspaceView() {
   const [creating, setCreating] = useState(false); const [newLabel, setNewLabel] = useState(''); const [newType, setNewType] = useState('note');
   const [notice, setNotice] = useState<string | null>(null);
 
-  const load = async () => {
+  const load = async (reconcile = false) => {
     setLoading(true); setError(null);
-    try { setItems(await (window as any).dawn.workspace.listItems({ q, type: typeFilter === 'all' ? undefined : typeFilter })); }
+    try {
+      if (reconcile) { try { await (window as any).dawn.workspace.reconcile(); } catch { /* non-fatal */ } }
+      setItems(await (window as any).dawn.workspace.listItems({ q, type: typeFilter === 'all' ? undefined : typeFilter }));
+    }
     catch (e: any) { setError(String(e?.message || e)); }
     finally { setLoading(false); }
   };
-  useEffect(() => { load(); }, [q, typeFilter]);
+  // Reconcile once on mount so the graph reflects real notes/tasks/docs/etc.; plain reloads on filter.
+  useEffect(() => { load(true); }, []);
+  useEffect(() => { load(false); }, [q, typeFilter]);
 
   const create = async () => {
     if (!newLabel.trim()) return;
@@ -81,7 +86,7 @@ export default function WorkspaceView() {
             <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="bg-bg/70 border border-border rounded-lg px-2 py-1.5 text-sm">
               {types.map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
-            <button onClick={load} className="p-2 rounded-lg border border-border text-faint hover:text-ink" aria-label="Refresh"><RefreshCw size={14} /></button>
+            <button onClick={() => load(true)} className="p-2 rounded-lg border border-border text-faint hover:text-ink" aria-label="Refresh + sync from features"><RefreshCw size={14} /></button>
           </div>
 
           {notice ? <div className="mb-3 text-xs text-neural-green">{notice}</div> : null}

@@ -459,7 +459,8 @@ export function rebuild() {
     }
   } catch { /* security/backup tables not present */ }
 
-  // Workspace graph (Phase 2): real workspace items become nodes, links become edges.
+  // Workspace graph (Phase 2): auto-register real feature rows, then inject items + links.
+  try { require('./workspace/registry').default.reconcile(); } catch { /* registry/tables absent */ }
   try {
     const wsItems = db.all('SELECT * FROM workspace_items ORDER BY updated_at DESC LIMIT 60');
     const wsIds = new Set<string>(wsItems.map((i: any) => i.id));

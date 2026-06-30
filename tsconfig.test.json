@@ -67,6 +67,7 @@
     "tests/globalSearch.test.ts",
     "tests/diagnostics.test.ts",
     "tests/workspaceGraph.test.ts",
-    "tests/emailSetup.test.ts"
+    "tests/emailSetup.test.ts",
+    "tests/workspaceAutoReg.test.ts"
   ]
 }

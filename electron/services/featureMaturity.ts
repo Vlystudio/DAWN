@@ -69,6 +69,7 @@ export function gatherSignals(): MaturitySignals {
     backups: count('backup_history', "kind='backup'") || count('backup_history'),
     workspaceItems: tryNum(() => count('workspace_items')),
     workspaceLinks: tryNum(() => count('workspace_links')),
+    workspaceRegistered: tryNum(() => count('workspace_items', 'ref_id IS NOT NULL')),
     toolsEnabled: !!s.toolsEnabled,
     voiceEnabled: !!s.voiceEnabled, voiceEngine: s.voiceEngine || '',
     companionEnabled: !!s.companionEnabled,

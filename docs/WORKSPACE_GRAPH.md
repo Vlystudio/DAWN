@@ -61,9 +61,40 @@ Two tables: `workspace_items` (id, type, ref_id, label, source_feature, metadata
 `workspace_links` (id, from_id, to_id, type, metadata, created_at, UNIQUE). **No secrets** — labels
 are non-secret handles; the vault is never represented here.
 
+## Auto-registration (from real features)
+
+DAWN auto-registers **real persisted rows** as workspace items — no manual create needed. The
+registry (`electron/services/workspace/registry.ts`) reconciles these sources via pure adapters
+(`adaptersCore.ts`):
+
+| Source | Item type |
+|---|---|
+| conversations | `conversation` |
+| memories | `memory` |
+| notes | `note` |
+| tasks | `task` |
+| documents | `document` |
+| research_runs | `research_run` |
+| benchmarks | `benchmark` |
+| email_accounts | `email_account` |
+
+Behaviour:
+
+- **Idempotent upsert** — keyed by `(type, ref_id)`; the same source row never duplicates.
+- **Updates in place** — when the source row changes (title/label), the item updates.
+- **Safe orphan pruning** — if a source row is deleted, its auto-registered item (and its links) is
+  removed. **Manual items are never pruned** (they have no `ref_id` / `source_feature = workspace`).
+- **When it runs** — on opening the Workspace Graph (and the refresh button), and on every **Brain
+  rebuild**. IPC: `workspace:reconcile`, `workspace:coverage`.
+- **Never registers secret-bearing tables** (vault/auth/audit). Email registers the *account*
+  (label/address), never the credential.
+
+System Health distinguishes **Workspace Graph** (core items/links) from **Workspace
+Auto-Registration** (this reconciler).
+
 ## Limitations / next steps
 
-- Linking in the UI currently takes a target **item id** (copy from the list). A picker is a planned
-  refinement.
-- Auto-registration of every feature row as a workspace item is incremental — today, items are
-  created on demand (manual create, Convert to Task, Save as Note). System Health tracks this.
+- Linking in the UI currently takes a target **item id** (copy from the list). A visual picker is the
+  next refinement (Loop 12).
+- Auto-registration is **reconcile-based** (scans real sources on open / Brain rebuild), not a live
+  hook on every individual create — idempotent and safe, and reflects real data within one reconcile.

@@ -45,6 +45,7 @@ import wsItems from './services/workspace/items';
 import wsLinks from './services/workspace/links';
 import wsSearch from './services/workspace/search';
 import workspace from './services/workspace/workspace';
+import wsRegistry from './services/workspace/registry';
 import db from './services/db';
 import * as pathlib from 'path';
 
@@ -595,6 +596,8 @@ export function registerIpc() {
   ipcMain.handle('workspace:search', (_e, q) => wsSearch.search(q || {}));
   ipcMain.handle('workspace:convertToTask', (_e, itemId) => workspace.convertToTask(String(itemId || '')));
   ipcMain.handle('workspace:saveAsNote', (_e, input) => workspace.saveAsNote(input || {}));
+  ipcMain.handle('workspace:reconcile', () => wsRegistry.reconcile());
+  ipcMain.handle('workspace:coverage', () => wsRegistry.coverage());
 
   // --- Diagnostics (redacted bundle; export to a user-chosen file) ---
   ipcMain.handle('diagnostics:bundle', () => diagnostics.bundle());
