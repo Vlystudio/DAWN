@@ -260,6 +260,11 @@ CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT);
 CREATE TABLE IF NOT EXISTS logs (
   id INTEGER PRIMARY KEY AUTOINCREMENT, ts INTEGER, level TEXT, source TEXT, message TEXT
 );
+
+-- System Health / Feature Maturity: last health-check result per feature area --
+CREATE TABLE IF NOT EXISTS feature_maturity (
+  id TEXT PRIMARY KEY, status TEXT, last_checked INTEGER, last_error TEXT, detail TEXT
+);
 `;
 
 function locateWasm(): string {

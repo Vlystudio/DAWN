@@ -376,6 +376,11 @@ const api = {
     restore: (path: string, password?: string) => ipcRenderer.invoke('backup:restore', { path, password }),
     onRestored: (cb: () => void) => sub('backup:restored', cb),
   },
+  maturity: {
+    list: () => ipcRenderer.invoke('maturity:list'),
+    check: () => ipcRenderer.invoke('maturity:check'),
+    get: (id: string) => ipcRenderer.invoke('maturity:get', id),
+  },
   openExternal: (url: string) => ipcRenderer.invoke('open:external', url),
   onNav: (cb: (view: string) => void) => sub('nav', cb),
 };

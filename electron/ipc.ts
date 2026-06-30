@@ -38,6 +38,7 @@ import kokoro from './services/kokoro';
 import vision from './services/vision';
 import companion from './services/companion';
 import fileAgent from './services/fileAgent';
+import featureMaturity from './services/featureMaturity';
 import db from './services/db';
 import * as pathlib from 'path';
 
@@ -563,6 +564,11 @@ export function registerIpc() {
   ipcMain.handle('fileagent:undo', () => fileAgent.undoLast());
   ipcMain.handle('fileagent:openDownloads', () => { shell.openPath(fileAgent.downloadDir()); return true; });
   ipcMain.handle('fileagent:scan', (_e, p) => fileAgent.scan(String(p || '')));
+
+  // --- System Health / Feature Maturity ---
+  ipcMain.handle('maturity:list', () => featureMaturity.list());
+  ipcMain.handle('maturity:check', () => featureMaturity.check());
+  ipcMain.handle('maturity:get', (_e, id) => featureMaturity.get(String(id || '')));
 
   // Misc
   ipcMain.handle('open:external', (_e, url) => shell.openExternal(url));

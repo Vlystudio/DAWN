@@ -32,6 +32,7 @@ export const ROUTES: RouteDef[] = [
   { key: 'skills', label: 'Skills', group: 'Automation' },
   { key: 'security', label: 'Security', group: 'Security' },
   { key: 'backup', label: 'Backup', group: 'Security' },
+  { key: 'health', label: 'System Health', group: 'System' },
   { key: 'logs', label: 'Logs', group: 'System' },
   { key: 'settings', label: 'Settings', group: 'System' },
 ];

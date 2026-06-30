@@ -62,6 +62,7 @@
     "tests/email.test.ts",
     "tests/backup.test.ts",
     "tests/ui.test.ts",
-    "tests/contract.test.ts"
+    "tests/contract.test.ts",
+    "tests/featureMaturity.test.ts"
   ]
 }

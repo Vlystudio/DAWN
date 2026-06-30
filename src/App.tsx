@@ -20,6 +20,7 @@ import LockScreen from './components/LockScreen';
 import EmailView from './components/EmailView';
 import BackupView from './components/BackupView';
 import DashboardView from './components/DashboardView';
+import FeatureMaturityView from './components/FeatureMaturityView';
 import ObsidianView from './components/ObsidianView';
 import NotionView from './components/NotionView';
 import KnowledgeView from './components/KnowledgeView';
@@ -144,6 +145,7 @@ export default function App() {
           {view === 'models' && <ModelManager />}
           {view === 'knowledge' && <KnowledgeView />}
           {view === 'localknowledge' && <LocalKnowledgePanel />}
+          {view === 'health' && <FeatureMaturityView onNav={setView} />}
           {view === 'logs' && <LogsView />}
           {view === 'settings' && <SettingsView />}
         </main>
