@@ -68,6 +68,7 @@
     "tests/diagnostics.test.ts",
     "tests/workspaceGraph.test.ts",
     "tests/emailSetup.test.ts",
-    "tests/workspaceAutoReg.test.ts"
+    "tests/workspaceAutoReg.test.ts",
+    "tests/routeConsistency.test.ts"
   ]
 }

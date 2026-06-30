@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ListChecks, RefreshCw } from 'lucide-react';
-import { Spinner, ErrorCallout, SectionHeader, EmptyState } from '../ui/primitives';
+import { SectionHeader, EmptyState } from '../ui/primitives';
+import { PageShell, LoadingState, ErrorState, Button } from '../ui/system';
 import SetupChecklist, { SetupRow } from './SetupChecklist';
 
 /**
@@ -43,31 +44,24 @@ export default function SetupCenterView({ onNav }: { onNav?: (view: string) => v
   const needsAttention = (reports || []).filter((r) => ['BLOCKED_BY_SETUP', 'BROKEN'].includes(r.status) && CATEGORIES.some((c) => c.ids.includes(r.id))).length;
 
   return (
-    <div className="h-full overflow-y-auto">
-      <div className="max-w-3xl mx-auto p-6">
-        <div className="flex items-start gap-3 mb-3">
-          <ListChecks size={22} style={{ color: 'var(--accent)' }} className="mt-0.5" aria-hidden />
-          <div className="flex-1">
-            <h1 className="text-xl font-bold">Setup Center</h1>
-            <p className="text-sm text-dim">What's configured, what needs attention, and what's optional — pulled live from System Health. {needsAttention > 0 ? <span className="text-neural-amber">{needsAttention} item{needsAttention === 1 ? '' : 's'} need setup.</span> : <span className="text-neural-green">Essentials look good.</span>}</p>
-          </div>
-          <button onClick={() => load(true)} disabled={checking} className="shrink-0 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-semibold disabled:opacity-60" style={{ color: 'var(--accent)', borderColor: 'rgba(var(--accent-rgb),0.55)', background: 'rgba(var(--accent-rgb),0.12)' }}>
-            <RefreshCw size={14} className={checking ? 'animate-spin' : ''} aria-hidden /> {checking ? 'Checking…' : 'Check again'}
-          </button>
-        </div>
+    <PageShell
+      width="max-w-3xl"
+      icon={<ListChecks size={22} />}
+      title="Setup Center"
+      subtitle={<>What's configured, what needs attention, and what's optional — pulled live from System Health. {needsAttention > 0 ? <span className="text-neural-amber">{needsAttention} item{needsAttention === 1 ? '' : 's'} need setup.</span> : <span className="text-neural-green">Essentials look good.</span>}</>}
+      actions={<Button variant="primary" onClick={() => load(true)} disabled={checking}><RefreshCw size={14} className={checking ? 'animate-spin' : ''} aria-hidden /> {checking ? 'Checking…' : 'Check again'}</Button>}
+    >
+      {error ? <ErrorState title="Couldn't load setup status" message={error} onRetry={() => load(false)} /> : null}
+      {loading && !reports ? <LoadingState label="Loading setup status…" /> :
+        !reports ? <EmptyState title="No data" body="Run a health check to populate setup status." /> :
+          groups.map((g) => g.rows.length ? (
+            <div key={g.title} className="mt-5">
+              <SectionHeader title={g.title} hint={`${g.rows.filter((r) => r.status === 'COMPLETE').length}/${g.rows.length} ready`} />
+              <SetupChecklist rows={g.rows} onNav={onNav} />
+            </div>
+          ) : null)}
 
-        {error ? <ErrorCallout title="Couldn't load setup status" message={error} onRetry={() => load(false)} /> : null}
-        {loading && !reports ? <div className="mt-6"><Spinner size={16} label="Loading setup status…" /></div> :
-          !reports ? <EmptyState title="No data" body="Run a health check to populate setup status." /> :
-            groups.map((g) => g.rows.length ? (
-              <div key={g.title} className="mt-5">
-                <SectionHeader title={g.title} hint={`${g.rows.filter((r) => r.status === 'COMPLETE').length}/${g.rows.length} ready`} />
-                <SetupChecklist rows={g.rows} onNav={onNav} />
-              </div>
-            ) : null)}
-
-        <div className="mt-6 text-[11px] text-faint">First-run setup covers model + memory + knowledge. Per-feature setup (email, security, integrations) lives here and in each feature's page. This page never marks anything complete on its own — it reflects real System Health.</div>
-      </div>
-    </div>
+      <div className="mt-6 text-[11px] text-faint">First-run setup covers model + memory + knowledge. Per-feature setup (email, security, integrations) lives here and in each feature's page. This page never marks anything complete on its own — it reflects real System Health.</div>
+    </PageShell>
   );
 }
