@@ -25,6 +25,7 @@ import CommandPalette from './components/CommandPalette';
 import GlobalSearch from './components/GlobalSearch';
 import WorkspaceView from './components/WorkspaceView';
 import EmailSetupWizard from './components/EmailSetupWizard';
+import SetupCenterView from './components/SetupCenterView';
 import ObsidianView from './components/ObsidianView';
 import NotionView from './components/NotionView';
 import KnowledgeView from './components/KnowledgeView';
@@ -150,6 +151,7 @@ export default function App() {
           {view === 'knowledge' && <KnowledgeView />}
           {view === 'localknowledge' && <LocalKnowledgePanel />}
           {view === 'workspace' && <WorkspaceView />}
+          {view === 'setup' && <SetupCenterView onNav={setView} />}
           {view === 'health' && <FeatureMaturityView onNav={setView} />}
           {view === 'logs' && <LogsView />}
           {view === 'settings' && <SettingsView />}

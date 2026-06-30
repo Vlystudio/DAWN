@@ -57,6 +57,7 @@ export default function CommandPalette({ onNav, onNewChat }: { onNav: (view: str
       { id: 'run-benchmark', label: 'Benchmark / Compare models', group: 'Actions', keywords: 'speed tok/s arena', run: () => go('compare') },
       { id: 'open-workspace', label: 'Open Workspace Graph', group: 'Actions', keywords: 'items links related', run: () => go('workspace') },
       { id: 'open-health', label: 'Open System Health', group: 'Actions', keywords: 'status maturity diagnostics', run: () => go('health') },
+      { id: 'open-setup', label: 'Open Setup Center', group: 'Actions', keywords: 'onboarding configure checklist', run: () => go('setup') },
       { id: 'email-setup', label: 'Email setup wizard…', group: 'Actions', keywords: 'imap smtp account gmail outlook', run: () => { close(); window.dispatchEvent(new Event('dawn:open-email-setup')); } },
     ];
     const nav: Cmd[] = ROUTES.map((r) => ({
