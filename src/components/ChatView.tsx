@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { RotateCw, Copy, Brain as BrainIcon, Volume2, VolumeX, Square, BookMarked, StickyNote, CheckSquare, FileText, ArrowRight } from 'lucide-react';
+import { RotateCw, Copy, Brain as BrainIcon, Volume2, VolumeX, Square, BookMarked, StickyNote, CheckSquare, FileText, ArrowRight, Link2 } from 'lucide-react';
+import WorkspaceItemPicker from './WorkspaceItemPicker';
 import Markdown from './Markdown';
 import Composer from './Composer';
 import AIBrainScene from '../brain/AIBrainScene';
@@ -37,6 +38,7 @@ export default function ChatView({
   onNav?: (view: string) => void;
 }) {
   const [actMsg, setActMsg] = useState<{ id: string; text: string; route?: string } | null>(null);
+  const [linkMsgId, setLinkMsgId] = useState<string | null>(null);
   const doMsgAction = async (messageId: string, p: Promise<any>, ok: string) => {
     try { const r = await p; setActMsg({ id: messageId, text: r?.ok ? ok : (r?.error || 'Action failed'), route: r?.ok ? r.route : undefined }); }
     catch (e: any) { setActMsg({ id: messageId, text: String(e?.message || e) }); }
@@ -300,6 +302,9 @@ export default function ChatView({
                     <button className="text-xs text-faint hover:text-ink inline-flex items-center gap-1" onClick={() => doMsgAction(m.id, (window as any).dawn.chat.saveMessageAsMemory(m.id), 'Saved to memory')}>
                       <BrainIcon size={12} /> Remember
                     </button>
+                    <button className="text-xs text-faint hover:text-ink inline-flex items-center gap-1" onClick={() => setLinkMsgId(m.id)}>
+                      <Link2 size={12} /> Link
+                    </button>
                   </div>
                   {actMsg && actMsg.id === m.id ? (
                     <div className="mt-1.5 text-[11px] text-neural-green inline-flex items-center gap-2">
@@ -374,6 +379,13 @@ export default function ChatView({
           </div>
         </div>
       ) : null}
+
+      <WorkspaceItemPicker
+        open={!!linkMsgId}
+        onClose={() => setLinkMsgId(null)}
+        title="Link this reply to a workspace item"
+        onPick={async (it) => { const id = linkMsgId; setLinkMsgId(null); if (id) doMsgAction(id, (window as any).dawn.chat.linkMessageItem(id, it.id, 'references'), `Linked to ${it.label}`); }}
+      />
     </div>
   );
 }

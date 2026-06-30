@@ -89,6 +89,7 @@ export const FEATURE_AREAS: FeatureArea[] = [
   { id: 'brain', name: 'Brain Explorer', group: 'Core', route: 'explorer', docs: 'ARCHITECTURE.md', summary: 'Data-driven 3D brain of your workspace.' },
   { id: 'workspace', name: 'Workspace Graph', group: 'Core', route: 'workspace', docs: 'WORKSPACE_GRAPH.md', summary: 'Unified items + typed links across features.' },
   { id: 'workspace_autoreg', name: 'Workspace Auto-Registration', group: 'Core', route: 'workspace', docs: 'WORKSPACE_GRAPH.md', summary: 'Real feature rows auto-register as items.' },
+  { id: 'workspace_linking', name: 'Workspace Linking UX', group: 'Core', route: 'workspace', docs: 'WORKSPACE_GRAPH.md', summary: 'Visual item picker + link dialog (no IDs).' },
   { id: 'memory', name: 'Memory', group: 'Knowledge', route: 'memory', summary: 'Durable, confirmed memories recalled in chat.' },
   { id: 'knowledge', name: 'Local Knowledge / RAG', group: 'Knowledge', route: 'localknowledge', settingsRoute: 'settings', docs: 'KNOWLEDGE_SETUP.md', summary: 'Index folders you approve; cited retrieval.' },
   { id: 'research', name: 'Deep Research', group: 'Core', route: 'research', docs: 'RESEARCH.md', summary: 'Plan → search → cite → report.' },
@@ -141,6 +142,7 @@ const EVAL: Record<string, Evaluator> = {
   chat_actions: () => ({ status: 'COMPLETE', works: ['Reply → Note / Task / Document / Memory', 'Each links created_from the conversation', 'Created item shows in Global Search + Brain'], missing: [] }),
   workspace: (s) => ({ status: 'COMPLETE', works: ['Typed items + links (services + DB + IPC + UI)', 'Cross-feature convert-to-task / save-as-note', 'In Global Search + Brain', `${n(s.workspaceItems)} items, ${n(s.workspaceLinks)} links`], missing: [] }),
   workspace_autoreg: (s) => ({ status: 'COMPLETE', works: ['8 real sources (chat/memory/notes/tasks/documents/research/benchmark/email)', 'Idempotent upsert + orphan pruning', 'Runs on Workspace open + Brain rebuild', `${n(s.workspaceRegistered)} registered`], missing: [] }),
+  workspace_linking: () => ({ status: 'COMPLETE', works: ['Visual item picker (search + type filter, no IDs)', 'Link dialog with relationship type', 'Friendly "already linked" handling; self/invalid blocked', 'Used in Workspace + Chat "Link" action', 'Related panel: add / remove / open / filter'], missing: [] }),
   memory: (s) => ({ status: n(s.memories) > 0 ? 'COMPLETE' : 'PARTIAL', works: ['Add/edit/pin memories', 'Cited recall in chat'], missing: n(s.memories) > 0 ? [] : ['No memories saved yet'], nextAction: n(s.memories) > 0 ? undefined : 'Save a memory from chat' }),
   knowledge: (s) => n(s.indexedFolders) > 0
     ? { status: n(s.knowledgeChunks) > 0 ? 'COMPLETE' : 'PARTIAL', works: ['Folder indexing', 'Cited retrieval', s.embeddingsAvailable ? 'Embeddings' : 'Keyword fallback'], missing: n(s.knowledgeChunks) > 0 ? (s.embeddingsAvailable ? [] : ['Embedding model (using keyword fallback)']) : ['Index has no chunks yet'], nextAction: n(s.knowledgeChunks) > 0 ? undefined : 'Re-index your folders' }

@@ -13,6 +13,7 @@ type Related = { link: { id: string; type: string; from_id: string; to_id: strin
 export default function RelatedItemsPanel({ itemId, onOpenItem, onChanged }: { itemId: string; onOpenItem?: (id: string) => void; onChanged?: () => void }) {
   const [items, setItems] = useState<Related[] | null>(null);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('all');
 
   const load = async () => {
     setLoading(true);
@@ -26,11 +27,19 @@ export default function RelatedItemsPanel({ itemId, onOpenItem, onChanged }: { i
   };
 
   if (loading && !items) return <div className="p-3"><Spinner size={14} label="Loading related…" /></div>;
-  if (!items || items.length === 0) return <div className="p-4 text-xs text-faint text-center">No related items yet.</div>;
+  if (!items || items.length === 0) return <div className="p-4 text-xs text-faint text-center">No related items yet. Use “+ Link…” to connect items.</div>;
+
+  const relTypes = ['all', ...Array.from(new Set(items.map((r) => r.link.type)))];
+  const shown = items.filter((r) => filter === 'all' || r.link.type === filter);
 
   return (
     <div className="space-y-1">
-      {items.map((r) => (
+      {relTypes.length > 2 ? (
+        <select value={filter} onChange={(e) => setFilter(e.target.value)} className="mb-1 w-full bg-bg/70 border border-border rounded-lg px-2 py-1 text-[11px]" aria-label="Filter by relationship">
+          {relTypes.map((t) => <option key={t} value={t}>{t === 'all' ? 'All relationships' : t.replace(/_/g, ' ')}</option>)}
+        </select>
+      ) : null}
+      {shown.map((r) => (
         <div key={r.link.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-panel/40 group">
           {r.direction === 'out' ? <ArrowRight size={12} className="text-faint shrink-0" aria-hidden /> : <ArrowLeft size={12} className="text-faint shrink-0" aria-hidden />}
           <span className="text-[10px] text-faint shrink-0 w-24 truncate" title={r.link.type}>{r.link.type.replace(/_/g, ' ')}</span>

@@ -92,9 +92,24 @@ Behaviour:
 System Health distinguishes **Workspace Graph** (core items/links) from **Workspace
 Auto-Registration** (this reconciler).
 
+## Visual linking (no IDs)
+
+Linking is fully visual — you never paste an item id:
+
+- In **Workspace Graph**, open an item → **+ Link…** → choose a relationship type → **Choose target
+  item…** opens the **item picker** (search + type filter, shows label/type/source/date/snippet).
+- In **Chat**, any reply has a **Link** action → pick a workspace item to link the conversation to.
+- The picker searches real workspace items only (`workspace:search`, parameterized) — the vault/auth/
+  audit are never in the workspace tables, so they can never appear.
+- `links.create` blocks self-links and invalid types and returns a friendly **"already linked"** for
+  duplicates (no crash). `RelatedItemsPanel` lets you **add / open / remove** links and **filter by
+  relationship**.
+
+Components: `WorkspaceItemPicker`, `WorkspaceLinkDialog`, `RelatedItemsPanel`. The picker's search SQL
+is the pure, tested `buildWorkspaceSearchSql` (parameterized, `excludeId`, type/source/link filters).
+
 ## Limitations / next steps
 
-- Linking in the UI currently takes a target **item id** (copy from the list). A visual picker is the
-  next refinement (Loop 12).
 - Auto-registration is **reconcile-based** (scans real sources on open / Brain rebuild), not a live
   hook on every individual create — idempotent and safe, and reflects real data within one reconcile.
+- Brain node details don't yet expose the link dialog inline (open the item in Workspace Graph to link).

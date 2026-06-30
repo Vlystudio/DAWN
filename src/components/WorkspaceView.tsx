@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Share2, Plus, Trash2, CheckSquare, Link2, X, RefreshCw } from 'lucide-react';
 import { Badge, Spinner, EmptyState, ErrorCallout, SectionHeader, ConfirmDialog } from '../ui/primitives';
 import RelatedItemsPanel from './RelatedItemsPanel';
+import WorkspaceLinkDialog from './WorkspaceLinkDialog';
 
 /**
  * WorkspaceView — the Workspace Graph: a filterable list of typed items, an item detail drawer with
@@ -12,8 +13,7 @@ import RelatedItemsPanel from './RelatedItemsPanel';
 
 type Item = { id: string; type: string; ref_id: string | null; label: string; source_feature: string; metadata: string; created_at: number; updated_at: number };
 
-const LINK_TYPES = ['related_to', 'references', 'created_from', 'summarizes', 'expands_on', 'attached_to', 'converted_to', 'uses_source', 'uses_memory', 'uses_tool', 'uses_model', 'generated_by', 'scheduled_as', 'assigned_to', 'exported_to', 'imported_from'];
-const ITEM_TYPES = ['note', 'task', 'document', 'conversation', 'research_run', 'memory', 'email_message', 'model', 'benchmark', 'skill', 'dcd_operation', 'coding_run'];
+const ITEM_TYPES =['note', 'task', 'document', 'conversation', 'research_run', 'memory', 'email_message', 'model', 'benchmark', 'skill', 'dcd_operation', 'coding_run'];
 
 export default function WorkspaceView() {
   const [items, setItems] = useState<Item[] | null>(null);
@@ -23,7 +23,7 @@ export default function WorkspaceView() {
   const [typeFilter, setTypeFilter] = useState('all');
   const [selected, setSelected] = useState<Item | null>(null);
   const [confirmDel, setConfirmDel] = useState<Item | null>(null);
-  const [linkTarget, setLinkTarget] = useState(''); const [linkType, setLinkType] = useState('related_to');
+  const [linkOpen, setLinkOpen] = useState(false); const [relKey, setRelKey] = useState(0);
   const [creating, setCreating] = useState(false); const [newLabel, setNewLabel] = useState(''); const [newType, setNewType] = useState('note');
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -50,10 +50,6 @@ export default function WorkspaceView() {
   };
   const convert = async (it: Item) => {
     try { const r = await (window as any).dawn.workspace.convertToTask(it.id); setNotice(r?.ok ? `Created task “${r.task?.title}”` : (r?.error || 'failed')); await load(); } catch (e: any) { setNotice(String(e?.message || e)); }
-  };
-  const addLink = async () => {
-    if (!selected || !linkTarget.trim()) return;
-    try { const r = await (window as any).dawn.workspace.createLink({ fromId: selected.id, toId: linkTarget.trim(), type: linkType }); setNotice(r?.ok ? (r.deduped ? 'Link already existed' : 'Linked') : (r?.error || 'link failed')); setLinkTarget(''); } catch (e: any) { setNotice(String(e?.message || e)); }
   };
 
   const types = useMemo(() => ['all', ...Array.from(new Set((items || []).map((i) => i.type)))], [items]);
@@ -121,24 +117,16 @@ export default function WorkspaceView() {
               <div className="flex-1 min-w-0"><div className="font-semibold text-sm">{selected.label}</div><div className="text-[10px] text-faint">{selected.type} · {selected.source_feature}</div></div>
               <button onClick={() => setSelected(null)} aria-label="Close" className="text-faint hover:text-ink"><X size={16} /></button>
             </div>
-            <SectionHeader icon={<Link2 size={14} />} title="Related items" />
-            <RelatedItemsPanel itemId={selected.id} onOpenItem={(id) => { const it = items?.find((x) => x.id === id); if (it) setSelected(it); }} onChanged={load} />
-            <div className="mt-3 pt-3 border-t border-border/60">
-              <div className="text-[11px] text-faint mb-1.5">Link to another item (by id):</div>
-              <div className="flex items-center gap-1.5">
-                <input value={linkTarget} onChange={(e) => setLinkTarget(e.target.value)} placeholder="target item id" className="flex-1 min-w-0 bg-bg/70 border border-border rounded-lg px-2 py-1 text-xs outline-none" />
-              </div>
-              <div className="flex items-center gap-1.5 mt-1.5">
-                <select value={linkType} onChange={(e) => setLinkType(e.target.value)} className="flex-1 bg-bg/70 border border-border rounded-lg px-2 py-1 text-xs">
-                  {LINK_TYPES.map((t) => <option key={t} value={t}>{t.replace(/_/g, ' ')}</option>)}
-                </select>
-                <button onClick={addLink} className="px-2.5 py-1 rounded-lg border border-border text-xs">Link</button>
-              </div>
+            <div className="flex items-center justify-between mb-1">
+              <SectionHeader icon={<Link2 size={14} />} title="Related items" />
+              <button onClick={() => setLinkOpen(true)} className="text-[11px] px-2 py-1 rounded-lg border text-sm font-medium" style={{ color: 'var(--accent)', borderColor: 'rgba(var(--accent-rgb),0.5)', background: 'rgba(var(--accent-rgb),0.1)' }}>+ Link…</button>
             </div>
+            <RelatedItemsPanel key={relKey} itemId={selected.id} onOpenItem={(id) => { const it = items?.find((x) => x.id === id); if (it) setSelected(it); }} onChanged={() => setRelKey((k) => k + 1)} />
           </div>
         </div>
       ) : null}
 
+      <WorkspaceLinkDialog open={linkOpen} sourceItem={selected} onClose={() => setLinkOpen(false)} onLinked={() => { setLinkOpen(false); setRelKey((k) => k + 1); }} />
       <ConfirmDialog open={!!confirmDel} title="Delete workspace item?" danger
         body={<>This removes <b>{confirmDel?.label}</b> and its links. The underlying note/task/etc. is not deleted.</>}
         confirmLabel="Delete" onConfirm={() => confirmDel && del(confirmDel)} onClose={() => setConfirmDel(null)} />
