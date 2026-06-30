@@ -112,4 +112,4 @@ is the pure, tested `buildWorkspaceSearchSql` (parameterized, `excludeId`, type/
 
 - Auto-registration is **reconcile-based** (scans real sources on open / Brain rebuild), not a live
   hook on every individual create — idempotent and safe, and reflects real data within one reconcile.
-- Brain node details don't yet expose the link dialog inline (open the item in Workspace Graph to link).
+- Brain node details now expose inline linking for workspace_item nodes (Related items + "+ Link…" using the visual picker).

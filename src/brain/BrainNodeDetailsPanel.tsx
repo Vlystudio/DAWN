@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Pin, Trash2, ExternalLink } from 'lucide-react';
 import { Button } from '../ui/button';
 import { COLORS } from './BrainState';
+import RelatedItemsPanel from '../components/RelatedItemsPanel';
+import WorkspaceLinkDialog from '../components/WorkspaceLinkDialog';
 
 /** Details panel shown when a brain node is clicked in the Explorer. */
 export default function BrainNodeDetailsPanel({
@@ -38,6 +40,9 @@ export default function BrainNodeDetailsPanel({
 function Panel({ detail, onClose, onPin, onForget, onOpen }: any) {
   const n = detail.node;
   const meta = safe(n.metadata_json);
+  const wsItemId: string | undefined = meta.workspaceItemId; // present on workspace_item nodes
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [relKey, setRelKey] = useState(0);
   const color = (COLORS as any)[n.color_group] || COLORS.cyan;
   const isMemory = n.type === 'memory';
   const isConversation = n.type === 'conversation';
@@ -78,6 +83,17 @@ function Panel({ detail, onClose, onPin, onForget, onOpen }: any) {
               </span>
             ))}
           </div>
+        </div>
+      ) : null}
+
+      {wsItemId ? (
+        <div className="mb-3 pt-2 border-t border-border">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs uppercase tracking-wide text-faint">Related items</span>
+            <button onClick={() => setLinkOpen(true)} className="text-[11px] px-2 py-0.5 rounded-lg border" style={{ color: 'var(--accent)', borderColor: 'rgba(var(--accent-rgb),0.5)', background: 'rgba(var(--accent-rgb),0.1)' }}>+ Link…</button>
+          </div>
+          <RelatedItemsPanel key={relKey} itemId={wsItemId} onChanged={() => setRelKey((k) => k + 1)} />
+          <WorkspaceLinkDialog open={linkOpen} sourceItem={{ id: wsItemId, label: n.title }} onClose={() => setLinkOpen(false)} onLinked={() => { setLinkOpen(false); setRelKey((k) => k + 1); }} />
         </div>
       ) : null}
 

@@ -66,6 +66,12 @@ test('new areas (workspace auto-reg, chat actions) are catalogued and COMPLETE w
   assert.ok(FEATURE_AREAS.find((a) => a.id === 'chat_actions'));
 });
 
+test('knowledge-safety, brain-linking, and knowledge-source-state areas are catalogued', () => {
+  assert.equal(evaluateArea('knowledge_safety').status, 'COMPLETE');
+  assert.equal(evaluateArea('brain_linking').status, 'COMPLETE');
+  for (const id of ['knowledge_safety', 'brain_linking']) assert.ok(FEATURE_AREAS.find((a) => a.id === id), `missing area ${id}`);
+});
+
 test('evaluateAll covers the whole catalog and summarize is sane', () => {
   const reports = evaluateAll({});
   assert.equal(reports.length, FEATURE_AREAS.length);
