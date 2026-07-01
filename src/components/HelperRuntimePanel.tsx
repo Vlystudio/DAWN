@@ -30,6 +30,9 @@ export default function HelperRuntimePanel() {
   useEffect(() => { load(); const t = setInterval(load, 4000); return () => clearInterval(t); }, []);
 
   async function toggle() { setBusy('toggle'); try { const r = await window.dawn.helperRuntime.updateSettings({ enabled: !st?.enabled }); setSt({ ...r.status, roles: st?.roles }); } catch { /* */ } setBusy(''); load(); }
+  async function toggleWarm() { setBusy('warm'); try { await window.dawn.helperRuntime.updateSettings({ keepWarm: !st?.keepWarm }); } catch { /* */ } setBusy(''); load(); }
+  async function cancelJobs() { setBusy('cancel'); try { await window.dawn.helperRuntime.cancelJobs(); } catch { /* */ } setBusy(''); load(); }
+  async function clearQueue() { setBusy('clear'); try { await window.dawn.helperRuntime.clearQueue(); } catch { /* */ } setBusy(''); load(); }
   async function pick() { setBusy('pick'); setMsg(''); const r = await window.dawn.helperRuntime.pickModel(); if (r?.ok) setSt({ ...r.status, roles: st?.roles }); else if (r && !r.canceled) setMsg('Could not set that model.'); setBusy(''); load(); }
   async function ctl(action: 'start' | 'stop' | 'restart') { setBusy(action); try { setSt(await window.dawn.helperRuntime[action]()); } catch { /* */ } setBusy(''); }
   async function runTest() { setBusy('test'); setTest(null); try { setTest(await window.dawn.helperRuntime.test()); } catch { /* */ } setBusy(''); }
@@ -65,6 +68,23 @@ export default function HelperRuntimePanel() {
       {test ? (
         <div className={`text-[11px] mb-2 ${test.ok ? 'text-neural-green' : 'text-neural-amber'}`}>
           {test.ok ? <><Check size={11} className="inline mb-0.5" /> OK · {test.latencyMs}ms · {test.provider} · {test.model}</> : <><AlertTriangle size={11} className="inline mb-0.5" /> {test.error}</>}
+        </div>
+      ) : null}
+
+      {st.enabled && (st as any).queue ? (
+        <div className="border-t border-border/40 pt-2 mb-2 text-[11px]">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-faint">Queue:</span>
+            <span className="text-dim">{(st as any).queue.active} active · {(st as any).queue.queued} queued / {(st as any).queue.capacity} · 1 at a time</span>
+            <span className="text-faint">· done {(st as any).queue.sessionCompleted} · cancelled {(st as any).queue.sessionCancelled} · timeouts {(st as any).queue.sessionTimedOut}</span>
+            {(st as any).queue.lastCancelled ? <span className="text-neural-amber">· last cancel: {(st as any).queue.lastCancelled.reason}</span> : null}
+            <div className="ml-auto flex items-center gap-1.5">
+              <button onClick={toggleWarm} disabled={!!busy} title="Keep the helper server loaded (uses memory/CPU) vs. stop it when idle" className={`px-2 py-0.5 rounded border ${(st as any).keepWarm ? 'border-neural-cyan/50 text-neural-cyan' : 'border-border text-faint hover:text-ink'}`}>Keep warm: {(st as any).keepWarm ? 'on' : 'off'}</button>
+              <button onClick={cancelJobs} disabled={!!busy} className="px-2 py-0.5 rounded border border-border text-faint hover:text-neural-red">Cancel jobs</button>
+              <button onClick={clearQueue} disabled={!!busy} className="px-2 py-0.5 rounded border border-border text-faint hover:text-ink">Clear</button>
+            </div>
+          </div>
+          {!(st as any).keepWarm ? <div className="text-[10px] text-faint mt-0.5">Stops after {Math.round(((st as any).idleStopMs || 300000) / 60000)} min idle (keep-warm off).</div> : null}
         </div>
       ) : null}
 

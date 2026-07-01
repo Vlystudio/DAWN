@@ -197,3 +197,26 @@ llama-server** — separate from the chat model — so they don't compete with o
 - **Safety unchanged.** The helper runtime only ever sees the query rewrite / HyDE / entailment prompts
   DAWN already builds; it never touches blocked/skipped/removed/vault/auth/audit material, and its
   request client never logs prompts or responses (no private content in diagnostics).
+
+## Helper job queue + cancellation + warm control
+
+The dedicated helper runtime now sits behind a **bounded job queue** so it's never hammered and stale
+work can't linger:
+
+- **Serialized by default** — one active helper request at a time (`helperRuntime.maxConcurrency`, default
+  1; `queueCapacity` default 32). Excess jobs are rejected honestly ("queue full"), never dropped silently.
+- **Priority** — query rewrite + HyDE are **high** (latency-critical, pre-retrieval); entailment is **low**
+  (post-answer) so it never starves retrieval; a manual runtime **test** is lowest.
+- **Cancellation** — every job carries an AbortSignal. Work is cancelled honestly (status: **cancelled /
+  superseded / timeout / runtime_stopped / app_quitting**, never a fake "failure") when: you press **Stop**,
+  a **newer request supersedes** an older one (per-turn *generation id*), the request **times out**, the
+  helper runtime **stops/restarts**, or the **app quits**. No orphan helper work continues.
+- **Warm control** — `keepWarm` keeps the helper server loaded (memory/CPU for lower latency); with it off,
+  the server **stops after `idleStopMs` idle**. A runtime is only shown **warm** when it's actually running
+  and reachable.
+- **No leakage** — queue status is roles/timings/counts only (**never prompt or response text**); helper
+  prompts/outputs are never logged. Fallback stays honest (helper_runtime → chat → lexical → skipped), and
+  main chat is unaffected if the queue/runtime fails.
+
+Controls live in **Model Cookbook → Helper runtime** (Keep-warm toggle, Cancel jobs, Clear queue) and
+System Health → Retrieval Helper Models shows live queue metrics.

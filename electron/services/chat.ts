@@ -24,6 +24,7 @@ import visionChat from './vision/visionChat';
 import visionCore from './vision/visionChatCore';
 import verify from './rag/answerVerificationCore';
 import entailment from './rag/entailment';
+import helperQueue from './rag/helperQueue';
 
 /** Pending PowerShell/web approvals, keyed by callId, resolved from the UI. */
 const pendingApprovals = new Map<string, (approved: boolean) => void>();
@@ -105,6 +106,9 @@ export function addMessage(conversationId: string, role: string, content: string
 
 /** Stream a reply, integrating memory and emitting brain status events. */
 export async function generate(sender: WebContents, conversationId: string) {
+  // New request generation: supersede + cancel any stale helper jobs from a previous turn so they can't
+  // modify this turn's retrieval/trace after the user has moved on.
+  helperQueue.beginGeneration();
   const conv: any = db.get('SELECT * FROM conversations WHERE id=?', [conversationId]);
   if (!conv) return { ok: false, error: 'Conversation not found.' };
   const s = effectiveSettings(settings.get());
@@ -344,6 +348,7 @@ export async function generate(sender: WebContents, conversationId: string) {
 
 export function stop(conversationId: string) {
   active.get(conversationId)?.abort();
+  helperQueue.cancelAll('cancelled'); // no stale helper work continues after the user stops
   return true;
 }
 

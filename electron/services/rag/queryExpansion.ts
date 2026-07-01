@@ -12,8 +12,14 @@ import hmCore, { HelperProvider } from './helperModelCore';
 import aid from './localModelAid';
 import helperRuntime from './helperRuntime';
 
-/** Route one helper prompt to the dedicated runtime, else the chat model, else skip. Honest provenance. */
-async function routeHelper(task: 'query_rewrite' | 'hyde', prompt: string, opts: { maxTokens?: number }): Promise<{ ok: boolean; text?: string; provider: HelperProvider; reason?: string }> {
+interface RouteOut { ok: boolean; text?: string; provider: HelperProvider; reason?: string; status?: string; queueWaitMs?: number; runMs?: number }
+
+/**
+ * Route one helper prompt: dedicated runtime (via the QUEUE, high priority) → chat model → skip. The
+ * queue serializes helper-runtime jobs, cancels stale/superseded ones, and enforces the timeout; every
+ * result carries honest provenance + status (completed/cancelled/superseded/timeout/rejected).
+ */
+async function routeHelper(task: 'query_rewrite' | 'hyde', prompt: string, opts: { maxTokens?: number }): Promise<RouteOut> {
   const s: any = settings.get();
   const res = hmCore.resolveHelperTask({
     task, taskEnabled: true, // callers only route when the task is enabled
@@ -23,33 +29,38 @@ async function routeHelper(task: 'query_rewrite' | 'hyde', prompt: string, opts:
     preferChatFallback: s.helperModels?.preferChatModelFallback !== false,
     lexicalFallback: false,
   });
-  if (res.provider === 'helper_runtime') { const r = await helperRuntime.callHelper(prompt, opts); return { ok: r.ok, text: r.text, provider: 'helper_runtime', reason: r.reason }; }
-  if (res.provider === 'chat') { const r = await aid.callModel(prompt, { timeoutMs: s.rewriteTimeoutMs || 8000, ...opts }); return { ok: r.ok, text: r.text, provider: 'chat', reason: r.reason }; }
-  return { ok: false, provider: res.provider, reason: res.reason };
+  if (res.provider === 'helper_runtime') {
+    const q = await helperRuntime.runQueued(task, 'high', prompt, opts); // rewrite + HyDE are latency-critical
+    return { ok: q.ok, text: q.text, provider: 'helper_runtime', reason: q.reason, status: q.status, queueWaitMs: q.queueWaitMs, runMs: q.runMs };
+  }
+  if (res.provider === 'chat') { const r = await aid.callModel(prompt, { timeoutMs: s.rewriteTimeoutMs || 8000, ...opts }); return { ok: r.ok, text: r.text, provider: 'chat', reason: r.reason, status: r.ok ? 'completed' : 'fallback' }; }
+  return { ok: false, provider: res.provider, reason: res.reason, status: 'skipped' };
 }
 
-export interface RewriteResult { queries: string[]; variants: string[]; keywords: string[]; mode: 'rewritten' | 'disabled' | 'fallback'; provider: HelperProvider; reason?: string }
+export interface RewriteResult { queries: string[]; variants: string[]; keywords: string[]; mode: 'rewritten' | 'disabled' | 'fallback'; provider: HelperProvider; reason?: string; status?: string; queueWaitMs?: number; runMs?: number }
 
 export async function rewrite(query: string): Promise<RewriteResult> {
   const s: any = settings.get();
   const base = { queries: [query], variants: [] as string[], keywords: [] as string[] };
-  if (!s.queryRewriteEnabled) return { ...base, mode: 'disabled', provider: 'none' };
+  if (!s.queryRewriteEnabled) return { ...base, mode: 'disabled', provider: 'none', status: 'skipped' };
   const r = await routeHelper('query_rewrite', core.buildRewritePrompt(query, s.maxRewriteQueries || 2), { maxTokens: 120 });
-  if (!r.ok) { logger.info('rag', `query rewrite fallback (provider=${r.provider}, ${r.reason})`); return { ...base, mode: 'fallback', provider: r.provider, reason: r.reason }; }
+  const meta = { provider: r.provider, reason: r.reason, status: r.status, queueWaitMs: r.queueWaitMs, runMs: r.runMs };
+  if (!r.ok) { logger.info('rag', `query rewrite fallback (provider=${r.provider}, status=${r.status}, ${r.reason})`); return { ...base, mode: 'fallback', ...meta }; }
   const parsed = core.parseRewrite(r.text || '', query, s.maxRewriteQueries || 2);
-  if (!parsed.variants.length) return { ...base, mode: 'fallback', provider: r.provider, reason: 'no usable variants' };
-  return { queries: [query, ...parsed.variants], variants: parsed.variants, keywords: parsed.keywords, mode: 'rewritten', provider: r.provider };
+  if (!parsed.variants.length) return { ...base, mode: 'fallback', ...meta, reason: 'no usable variants' };
+  return { queries: [query, ...parsed.variants], variants: parsed.variants, keywords: parsed.keywords, mode: 'rewritten', ...meta };
 }
 
-export interface HydeResult { text: string | null; mode: 'hyde' | 'disabled' | 'fallback'; provider: HelperProvider; reason?: string }
+export interface HydeResult { text: string | null; mode: 'hyde' | 'disabled' | 'fallback'; provider: HelperProvider; reason?: string; status?: string; queueWaitMs?: number; runMs?: number }
 
 export async function hyde(query: string): Promise<HydeResult> {
   const s: any = settings.get();
-  if (!s.hydeEnabled) return { text: null, mode: 'disabled', provider: 'none' };
+  if (!s.hydeEnabled) return { text: null, mode: 'disabled', provider: 'none', status: 'skipped' };
   const r = await routeHelper('hyde', core.buildHydePrompt(query), { maxTokens: 160 });
-  if (!r.ok) { logger.info('rag', `HyDE fallback (provider=${r.provider}, ${r.reason})`); return { text: null, mode: 'fallback', provider: r.provider, reason: r.reason }; }
+  const meta = { provider: r.provider, reason: r.reason, status: r.status, queueWaitMs: r.queueWaitMs, runMs: r.runMs };
+  if (!r.ok) { logger.info('rag', `HyDE fallback (provider=${r.provider}, status=${r.status}, ${r.reason})`); return { text: null, mode: 'fallback', ...meta }; }
   const t = core.sanitizeHyde(r.text || '');
-  return t ? { text: t, mode: 'hyde', provider: r.provider } : { text: null, mode: 'fallback', provider: r.provider, reason: 'empty' };
+  return t ? { text: t, mode: 'hyde', ...meta } : { text: null, mode: 'fallback', ...meta, reason: 'empty' };
 }
 
 export default { rewrite, hyde };

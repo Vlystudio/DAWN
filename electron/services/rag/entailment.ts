@@ -32,10 +32,11 @@ export async function verifyClaim(claim: string, evidence: string): Promise<Enta
   if (res.provider === 'none' || res.provider === 'lexical') return { support: null, mode: 'lexical_fallback', provider: res.provider, reason: res.reason };
 
   const prompt = ecore.buildEntailmentPrompt(claim, evidence);
+  // Entailment is post-answer → LOW priority so it never starves latency-critical rewrite/HyDE.
   const r = res.provider === 'helper_runtime'
-    ? await helperRuntime.callHelper(prompt, { maxTokens: 90 })
+    ? await helperRuntime.runQueued('entailment', 'low', prompt, { maxTokens: 90 })
     : await aid.callModel(prompt, { timeoutMs: s.rewriteTimeoutMs || 8000, maxTokens: 90 });
-  if (!r.ok) return { support: null, mode: 'lexical_fallback', provider: res.provider, reason: r.reason };
+  if (!r.ok) return { support: null, mode: 'lexical_fallback', provider: res.provider, reason: (r as any).reason };
   const parsed = ecore.parseEntailment(r.text || '');
   if (!parsed.support) return { support: null, mode: 'lexical_fallback', provider: res.provider, reason: 'unparseable' };
   return { support: parsed.support, explanation: parsed.explanation, mode: 'entailment', provider: res.provider };

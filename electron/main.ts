@@ -211,6 +211,7 @@ app.on('before-quit', () => {
   db.saveNow();
   runtime.stop().catch(() => {});
   try {
+    require('./services/rag/helperQueue').default.clear('app_quitting'); // cancel in-flight helper jobs
     require('./services/rag/helperRuntime').default.stop();
   } catch {
     /* ignore */

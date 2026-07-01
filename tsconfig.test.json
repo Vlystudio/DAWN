@@ -52,6 +52,7 @@
     "electron/services/rag/entailmentCore.ts",
     "electron/services/rag/ragEvalFixture.ts",
     "electron/services/rag/helperModelCore.ts",
+    "electron/services/rag/helperQueue.ts",
     "electron/services/knowledge/chunkingCore.ts",
     "tests/agentos.test.ts",
     "tests/agentosRuntime.test.ts",
@@ -92,6 +93,7 @@
     "tests/shellLayout.test.ts",
     "tests/uiMigration.test.ts",
     "tests/attachments.test.ts",
-    "tests/retrieval.test.ts"
+    "tests/retrieval.test.ts",
+    "tests/helperQueue.test.ts"
   ]
 }

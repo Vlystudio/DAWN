@@ -208,6 +208,9 @@ export function registerIpc() {
   ipcMain.handle('helperRuntime:restart', async () => { await helperRuntime.restart(); return { ...helperRuntime.status(), roles: helperRuntime.roles() }; });
   ipcMain.handle('helperRuntime:test', () => helperRuntime.test());
   ipcMain.handle('helperRuntime:updateSettings', (_e, patch) => helperRuntime.updateSettings(patch || {}));
+  ipcMain.handle('helperRuntime:queueStatus', () => require('./services/rag/helperQueue').default.status());
+  ipcMain.handle('helperRuntime:cancelJobs', () => { require('./services/rag/helperQueue').default.cancelAll('cancelled'); return require('./services/rag/helperQueue').default.status(); });
+  ipcMain.handle('helperRuntime:clearQueue', () => { require('./services/rag/helperQueue').default.clear('cleared'); return require('./services/rag/helperQueue').default.status(); });
   ipcMain.handle('helperRuntime:pickModel', async (e) => {
     const win = BrowserWindow.fromWebContents(e.sender);
     const res = await dialog.showOpenDialog(win!, { title: 'Select a small helper model (.gguf)', properties: ['openFile'], filters: [{ name: 'GGUF', extensions: ['gguf'] }] });

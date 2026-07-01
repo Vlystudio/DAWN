@@ -7,6 +7,7 @@ import logger from '../logger';
 import runtime from '../runtime';
 import * as llama from '../llama';
 import hmCore from './helperModelCore';
+import helperQueue from './helperQueue';
 
 /**
  * helperRuntime.ts — a SECOND, dedicated llama.cpp `llama-server` process for retrieval HELPER tasks
@@ -32,6 +33,10 @@ export interface HelperStatus {
   port: number;
   error: string | null; // redacted, no path
   installed: boolean;   // llama-server.exe present
+  warm?: boolean;       // running AND reachable
+  keepWarm?: boolean;
+  idleStopMs?: number;
+  queue?: import('./helperQueue').QueueStatus;
 }
 
 function cfg() {
@@ -39,6 +44,7 @@ function cfg() {
   return (s.helperRuntime || {}) as {
     enabled?: boolean; modelPath?: string; port?: number; contextSize?: number; threads?: number;
     gpuLayers?: number; batchSize?: number; startupTimeoutMs?: number; requestTimeoutMs?: number; autoStart?: boolean;
+    keepWarm?: boolean; idleStopMs?: number; maxConcurrency?: number; queueCapacity?: number;
   };
 }
 const baseName = (p?: string) => String(p || '').split(/[\\/]/).pop() || '';
@@ -51,9 +57,13 @@ class HelperRuntimeManager {
   private reachable = false;
   private stopping = false;
   private healthTimer: NodeJS.Timeout | null = null;
+  private idleTimer: NodeJS.Timeout | null = null;
+  private lastUsedAt = 0;
 
   baseUrl() { return `http://127.0.0.1:${this.port}`; }
   isReady() { return this.state === 'READY' && this.reachable && !!this.proc; }
+  /** "Warm" is honest: running AND reachable (never claimed otherwise). */
+  isWarm() { return this.isReady(); }
 
   status(): HelperStatus {
     const c = cfg();
@@ -66,10 +76,14 @@ class HelperRuntimeManager {
       configured: !!c.modelPath,
       running: !!this.proc,
       reachable: this.reachable,
+      warm: this.isWarm(),
+      keepWarm: !!c.keepWarm,
+      idleStopMs: Number(c.idleStopMs) > 0 ? Number(c.idleStopMs) : 300000,
       modelName: baseName(c.modelPath),
       port: this.port || Number(c.port) || 8090,
       error: this.error,
       installed,
+      queue: helperQueue.status(),
     };
   }
 
@@ -111,6 +125,7 @@ class HelperRuntimeManager {
     if (!fs.existsSync(model)) { this.setError('The configured helper model file is missing.'); return { ok: false, error: this.error! }; }
     if (!/\.gguf$/i.test(model)) { this.setError('The helper model must be a .gguf file.'); return { ok: false, error: this.error! }; }
 
+    helperQueue.configure({ capacity: c.queueCapacity || 32, maxConcurrency: c.maxConcurrency || 1 });
     this.port = await this.findPort(Number(c.port) || 8090);
     this.state = 'STARTING';
     const args = this.buildArgs(model, this.port);
@@ -139,12 +154,27 @@ class HelperRuntimeManager {
     this.healthTimer = setInterval(async () => {
       if (!this.proc) { this.clearHealth(); return; }
       const h = await this.health();
-      if (h === 'ok') { this.reachable = true; if (this.state !== 'READY') { this.state = 'READY'; logger.info('helper-runtime', 'helper model ready'); } }
+      if (h === 'ok') { this.reachable = true; if (this.state !== 'READY') { this.state = 'READY'; if (!this.lastUsedAt) this.lastUsedAt = Date.now(); this.startIdleMonitor(); logger.info('helper-runtime', 'helper model ready'); } }
       else if (h === 'loading') { this.reachable = false; if (this.state !== 'LOADING') this.state = 'LOADING'; }
       else if (Date.now() - t0 > startupTimeoutMs) { this.setError(`Helper runtime did not become healthy within ${Math.round(startupTimeoutMs / 1000)}s.`); this.clearHealth(); }
     }, 1500);
   }
   private clearHealth() { if (this.healthTimer) { clearInterval(this.healthTimer); this.healthTimer = null; } }
+
+  /** Idle monitor: if keepWarm is off, stop the helper server after it's been idle for idleStopMs. */
+  private startIdleMonitor() {
+    if (this.idleTimer) return;
+    this.idleTimer = setInterval(() => {
+      const c = cfg();
+      if (c.keepWarm) return; // stay warm
+      const idleMs = Number(c.idleStopMs) > 0 ? Number(c.idleStopMs) : 300000;
+      if (this.isReady() && Date.now() - this.lastUsedAt > idleMs) {
+        logger.info('helper-runtime', `helper runtime idle > ${Math.round(idleMs / 1000)}s — stopping (keepWarm off)`);
+        this.stop().catch(() => {});
+      }
+    }, 15000);
+  }
+  private clearIdle() { if (this.idleTimer) { clearInterval(this.idleTimer); this.idleTimer = null; } }
 
   async health(): Promise<'ok' | 'loading' | 'down'> {
     try {
@@ -156,6 +186,8 @@ class HelperRuntimeManager {
   }
 
   async stop(): Promise<void> {
+    helperQueue.clear('runtime_stopped'); // cancel any in-flight/queued helper jobs — no orphan work
+    this.clearIdle();
     if (!this.proc) { this.state = cfg().enabled ? 'OFF' : 'DISABLED'; return; }
     this.stopping = true; this.state = 'STOPPING'; this.clearHealth();
     const p = this.proc;
@@ -179,17 +211,26 @@ class HelperRuntimeManager {
    * The SAFE helper request client: a one-shot chat call to the helper server with a strict timeout.
    * Never logs the prompt or response. Returns an honest failure when the server is unreachable.
    */
-  async callHelper(prompt: string, opts: { maxTokens?: number; temperature?: number } = {}): Promise<{ ok: boolean; text?: string; reason?: string }> {
+  async callHelper(prompt: string, opts: { maxTokens?: number; temperature?: number } = {}, signal?: AbortSignal): Promise<{ ok: boolean; text?: string; reason?: string }> {
     if (!this.isReady()) return { ok: false, reason: 'helper runtime not ready' };
     const c = cfg();
-    const ctrl = new AbortController();
-    const to = setTimeout(() => ctrl.abort(), c.requestTimeoutMs || 8000);
+    // When the QUEUE supplies a signal it also owns the timeout; otherwise we time out ourselves.
+    let ctrl: AbortController | null = null; let to: any = null;
+    let sig = signal;
+    if (!sig) { ctrl = new AbortController(); sig = ctrl.signal; to = setTimeout(() => ctrl!.abort(), c.requestTimeoutMs || 8000); }
     try {
-      const text = await llama.chat(this.baseUrl(), [{ role: 'user', content: prompt }], { temperature: opts.temperature ?? 0.2, max_tokens: opts.maxTokens ?? 200 }, ctrl.signal);
+      const text = await llama.chat(this.baseUrl(), [{ role: 'user', content: prompt }], { temperature: opts.temperature ?? 0.2, max_tokens: opts.maxTokens ?? 200 }, sig);
+      this.lastUsedAt = Date.now();
       return { ok: true, text };
     } catch (e: any) {
-      return { ok: false, reason: e?.name === 'AbortError' ? 'timeout' : 'helper request failed' };
-    } finally { clearTimeout(to); }
+      return { ok: false, reason: e?.name === 'AbortError' ? (signal ? 'cancelled' : 'timeout') : 'helper request failed' };
+    } finally { if (to) clearTimeout(to); }
+  }
+
+  /** Run a helper prompt THROUGH the queue (serialized, cancellable, prioritized). Returns queue metadata. */
+  runQueued(role: string, priority: import('./helperQueue').Priority, prompt: string, opts: { maxTokens?: number; temperature?: number } = {}) {
+    const c = cfg();
+    return helperQueue.run(role, priority, (sig) => this.callHelper(prompt, opts, sig), { timeoutMs: c.requestTimeoutMs || 8000 });
   }
 
   /** Per-role provider status (which provider each helper task would currently use). Honest. */

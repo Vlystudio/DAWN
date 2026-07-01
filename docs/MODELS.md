@@ -109,3 +109,10 @@ runs retrieval helpers (query rewrite / HyDE / entailment) without competing wit
 the lexical verifier for entailment). Settings live under `helperRuntime.*` (the process) — distinct from
 `helperModels.*` (the per-task roles). System Health → Retrieval Helper Models shows live status +
 per-role provenance. See [LOCAL_KNOWLEDGE.md](LOCAL_KNOWLEDGE.md).
+
+### Helper job queue
+
+Helper-runtime requests go through a bounded, **one-at-a-time** priority queue (rewrite/HyDE high,
+entailment low) with honest cancellation (cancelled / superseded / timeout / runtime_stopped /
+app_quitting) and **keep-warm** / idle-stop controls. Queue metrics never include prompt/response text.
+See [LOCAL_KNOWLEDGE.md](LOCAL_KNOWLEDGE.md).

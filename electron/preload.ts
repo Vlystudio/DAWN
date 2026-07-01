@@ -53,6 +53,9 @@ const api = {
     test: () => ipcRenderer.invoke('helperRuntime:test'),
     updateSettings: (patch: any) => ipcRenderer.invoke('helperRuntime:updateSettings', patch),
     pickModel: () => ipcRenderer.invoke('helperRuntime:pickModel'),
+    queueStatus: () => ipcRenderer.invoke('helperRuntime:queueStatus'),
+    cancelJobs: () => ipcRenderer.invoke('helperRuntime:cancelJobs'),
+    clearQueue: () => ipcRenderer.invoke('helperRuntime:clearQueue'),
   },
   setup: {
     complete: (patch: any) => ipcRenderer.invoke('setup:complete', patch),
