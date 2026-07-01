@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { BookOpen, RefreshCw, Cpu } from 'lucide-react';
 import { PageShell, StatusBadge, LoadingState, ErrorState, EmptyState, Button, DataTable } from '../ui/system';
+import { resolveStatus } from '../lib/statusMap';
 
 /**
  * ModelCookbookView — "which installed model is best for what, and will it run here." Pulls real data
@@ -12,7 +13,6 @@ import { PageShell, StatusBadge, LoadingState, ErrorState, EmptyState, Button, D
 type Entry = { modelId: string; friendlyName: string; actualName: string; roles: string[]; level: string; fitLabel: string; recommended: boolean; needsBenchmark: boolean; benchmarkTps?: number | null; why: string };
 type Cookbook = { hardware: { gpu: string | null; vramGB: number | null; detected: boolean }; entries: Entry[]; bestForRole: Record<string, Entry>; roleLabels: Record<string, string> };
 
-const FIT_TONE: Record<string, string> = { 'Fits in VRAM': 'ok', 'Partial offload': 'warning', 'CPU fallback': 'warning', 'Too large / not recommended': 'error', 'Unknown hardware': 'disabled' };
 
 export default function ModelCookbookView({ onNav }: { onNav?: (view: string) => void }) {
   const [data, setData] = useState<Cookbook | null>(null);
@@ -63,7 +63,7 @@ export default function ModelCookbookView({ onNav }: { onNav?: (view: string) =>
               columns={[
                 { key: 'name', header: 'Model', render: (e) => <div><div className="font-medium truncate max-w-[220px]" title={e.actualName}>{e.friendlyName}</div><div className="text-[10px] text-faint truncate max-w-[220px]">{e.actualName}</div></div> },
                 { key: 'roles', header: 'Good for', render: (e) => <span className="text-xs text-dim">{e.roles.map((r) => roleLabels[r] || r).join(', ') || <span className="text-faint">unknown</span>}</span> },
-                { key: 'fit', header: 'Hardware fit', render: (e) => <span className={`text-[11px] px-2 py-0.5 rounded-full border ${tone(FIT_TONE[e.fitLabel])}`}>{e.fitLabel}</span> },
+                { key: 'fit', header: 'Hardware fit', render: (e) => <span className={`text-[11px] px-2 py-0.5 rounded-full border ${tone(resolveStatus('modelFit', e.fitLabel).tone)}`}>{e.fitLabel}</span> },
                 { key: 'bench', header: 'Speed', render: (e) => e.benchmarkTps != null ? <span className="text-xs text-neural-green">{e.benchmarkTps.toFixed(1)} tok/s</span> : <span className="text-[11px] text-neural-amber">Needs benchmark</span> },
                 { key: 'why', header: 'Why', render: (e) => <span className="text-[11px] text-faint">{e.why}</span>, className: 'max-w-[260px]' },
               ]}

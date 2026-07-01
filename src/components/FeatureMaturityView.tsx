@@ -1,12 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Activity, RefreshCw, ArrowRight, ExternalLink, Download, ClipboardCopy } from 'lucide-react';
 import { Badge, Spinner, ErrorCallout, SectionHeader, EmptyState } from '../ui/primitives';
+import { resolveStatus } from '../lib/statusMap';
 
-/** Status → badge kind (mirrors featureMaturityCore.statusTone; kept local to avoid a cross-boundary import). */
-const STATUS_TONE: Record<string, string> = {
-  COMPLETE: 'ok', PARTIAL: 'warning', BLOCKED_BY_SETUP: 'locked', BROKEN: 'error', STUB: 'disabled', MISSING: 'disabled',
-};
-const statusTone = (s: string) => STATUS_TONE[s] || 'disabled';
+const statusTone = (s: string) => resolveStatus('feature', s).tone;
 
 /**
  * FeatureMaturityView — DAWN's honest internal completion dashboard ("System Health"). It shows,
@@ -25,7 +22,7 @@ type Payload = { reports: Report[]; summary: { total: number; byStatus: Record<s
 const STATUS_LABEL: Record<string, string> = {
   COMPLETE: 'Complete', PARTIAL: 'Partial', BLOCKED_BY_SETUP: 'Needs setup',
   STUB: 'Stub', BROKEN: 'Broken', MISSING: 'Missing',
-};
+}; // filter-chip labels; per-row badges use the central statusMap via resolveStatus
 
 function when(ts?: number | null): string {
   if (!ts) return 'never';
@@ -149,7 +146,7 @@ export default function FeatureMaturityView({ onNav }: { onNav?: (view: string) 
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-semibold text-sm">{r.name}</span>
-                              <Badge kind={statusTone(r.status as any)}>{STATUS_LABEL[r.status] || r.status}</Badge>
+                              <Badge kind={resolveStatus('feature', r.status).tone}>{resolveStatus('feature', r.status).label}</Badge>
                               <span className="text-[11px] text-faint">checked {when(r.lastCheckedAt)}</span>
                             </div>
                             <p className="text-xs text-dim mt-0.5">{r.summary}</p>

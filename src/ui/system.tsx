@@ -1,5 +1,6 @@
 import React from 'react';
 import { Badge, Spinner, ErrorCallout, EmptyState } from './primitives';
+import { resolveStatus } from '../lib/statusMap';
 
 /**
  * system.tsx — DAWN's shared "design system" layer built on top of primitives.tsx. These give every
@@ -29,11 +30,10 @@ export function PageShell({ icon, title, subtitle, actions, children, width = 'm
   );
 }
 
-/** Maturity/feature status → a labelled badge (re-exported mapping so screens agree on tone). */
-const STATUS_TONE: Record<string, string> = { COMPLETE: 'ok', PARTIAL: 'warning', BLOCKED_BY_SETUP: 'locked', BROKEN: 'error', STUB: 'disabled', MISSING: 'disabled' };
-const STATUS_LABEL: Record<string, string> = { COMPLETE: 'Ready', PARTIAL: 'Partial', BLOCKED_BY_SETUP: 'Needs setup', BROKEN: 'Broken', STUB: 'Stub', MISSING: 'Missing' };
-export function StatusBadge({ status, children }: { status: string; children?: React.ReactNode }) {
-  return <Badge kind={STATUS_TONE[status] || 'disabled'}>{children || STATUS_LABEL[status] || status}</Badge>;
+/** Maturity/feature status → a labelled badge, from the central status map (one source of truth). */
+export function StatusBadge({ status, group = 'feature', children }: { status: string; group?: import('../lib/statusMap').StatusGroup; children?: React.ReactNode }) {
+  const d = resolveStatus(group, status);
+  return <Badge kind={d.tone}>{children || d.label}</Badge>;
 }
 
 /** Health badge: ok/warning/error/locked/disabled with an optional label. */

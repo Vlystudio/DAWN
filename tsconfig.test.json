@@ -76,6 +76,7 @@
     "tests/sourceState.test.ts",
     "tests/citation.test.ts",
     "tests/knowledgeStale.test.ts",
-    "tests/liveHooks.test.ts"
+    "tests/liveHooks.test.ts",
+    "tests/statusMap.test.ts"
   ]
 }

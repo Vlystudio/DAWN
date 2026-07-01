@@ -44,3 +44,16 @@ migrating the older screens is incremental (System Health tracks this as **Desig
 Migrate the pending screens to `PageShell` + `DataTable` + shared states, one screen per change, with
 the route-consistency test guarding against regressions. When the major screens are migrated, the
 System Health "Design System" area moves from **Partial → Complete**.
+
+## Status language (one source of truth)
+
+`src/lib/statusMap.ts` is DAWN's single, tested source of truth for status language. It maps every
+status code — in groups **feature / knowledge / retrieval / modelFit / toolRisk / setup** — to a
+**display label**, a **badge tone** (uiCore `BadgeKind`), a **plain-English explanation**, and an
+optional next-action hint. `resolveStatus(group, key)` never throws: an unrecognised code resolves to
+a neutral **"Unknown"** badge (never a crash, never fake reassurance).
+
+Adopted by: `StatusBadge` (`ui/system.tsx`), **System Health**, **Setup Center** (`SetupChecklist`),
+and **Model Cookbook** — so a status means the same thing (and looks the same) everywhere. Screens
+still to adopt it are the legacy screens tracked under **Design System → Partial** in System Health.
+Tests: `tests/statusMap.test.ts` (valid tones, documented statuses, safe Unknown, no dup keys).

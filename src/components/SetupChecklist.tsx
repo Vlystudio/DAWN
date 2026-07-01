@@ -1,6 +1,7 @@
 import React from 'react';
 import { Check, AlertTriangle, Circle, ArrowRight, Settings as Cog } from 'lucide-react';
 import { Badge } from '../ui/primitives';
+import { resolveStatus } from '../lib/statusMap';
 
 /**
  * SetupChecklist — a reusable, design-system checklist row list used by the Setup Center (and
@@ -15,9 +16,6 @@ export interface SetupRow {
   id: string; name: string; summary: string; status: SetupStatus; required?: boolean;
   requiredSetup?: string; nextAction?: string; route?: string; settingsRoute?: string;
 }
-
-const TONE: Record<string, string> = { COMPLETE: 'ok', PARTIAL: 'warning', BLOCKED_BY_SETUP: 'locked', BROKEN: 'error', MISSING: 'disabled' };
-const LABEL: Record<string, string> = { COMPLETE: 'Ready', PARTIAL: 'Partial', BLOCKED_BY_SETUP: 'Needs setup', BROKEN: 'Broken', MISSING: 'Missing' };
 
 function Icon({ status }: { status: SetupStatus }) {
   if (status === 'COMPLETE') return <Check size={15} className="text-neural-green" aria-hidden />;
@@ -36,7 +34,7 @@ export default function SetupChecklist({ rows, onNav }: { rows: SetupRow[]; onNa
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-medium text-sm">{r.name}</span>
-                <Badge kind={TONE[r.status] || 'disabled'}>{LABEL[r.status] || r.status}</Badge>
+                <Badge kind={resolveStatus('feature', r.status).tone}>{resolveStatus('feature', r.status).label}</Badge>
                 <span className="text-[10px] text-faint">{r.required ? 'recommended' : 'optional'}</span>
               </div>
               <p className="text-xs text-dim mt-0.5">{r.summary}</p>
