@@ -4,6 +4,7 @@ import {
   Power, RotateCcw, Info, ChevronRight, Layers, Activity,
 } from 'lucide-react';
 import { useRuntimeStore } from '../state/runtimeStore';
+import { PageShellPanel } from '../ui/system';
 
 /**
  * Model Optimizer — DAWN understands your hardware, scores every local model, gives it a
@@ -75,12 +76,7 @@ export default function ModelOptimizer() {
   const detail = models.find((m) => (m.path || m.actualName) === detailId) || null;
 
   return (
-    <div className="p-6 max-w-5xl mx-auto h-full overflow-y-auto">
-      <div className="flex items-center gap-2">
-        <Sparkles size={18} style={{ color: 'var(--accent)' }} />
-        <h1 className="text-xl font-bold">Model Optimizer</h1>
-      </div>
-      <p className="text-sm text-dim mb-4">DAWN reads your hardware, scores each local model, and auto-tunes its runtime settings. The real model name is always shown — friendly names are just easier to remember.</p>
+    <PageShellPanel width="max-w-5xl" icon={<Sparkles size={22} />} title="Model Optimizer" subtitle="DAWN reads your hardware, scores each local model, and auto-tunes its runtime settings. The real model name is always shown — friendly names are just easier to remember.">
 
       {/* Hardware profile */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
@@ -177,7 +173,7 @@ export default function ModelOptimizer() {
       {toast ? (
         <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-lg glass text-sm border border-border shadow-lg">{toast}</div>
       ) : null}
-    </div>
+    </PageShellPanel>
   );
 }
 

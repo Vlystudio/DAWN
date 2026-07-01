@@ -12,6 +12,7 @@ import guard from './knowledge/knowledgeGuardCore';
 import sourceState from './knowledge/sourceStateCore';
 import citationCore from './knowledge/citationCore';
 import stale_ from './knowledge/knowledgeStaleCore';
+import live from './workspace/liveHooks';
 import { chunkText } from './chunk';
 
 /**
@@ -51,7 +52,7 @@ class Rag extends EventEmitter {
   removeFolder(folder: string) {
     settings.save({ indexedFolders: this.folders().filter((f) => f !== folder) });
     const files = db.all<{ id: string }>('SELECT id FROM knowledge_sources WHERE path LIKE ?', [folder + '%']);
-    for (const f of files) db.run('DELETE FROM knowledge_chunks WHERE source_id=?', [f.id]);
+    for (const f of files) { db.run('DELETE FROM knowledge_chunks WHERE source_id=?', [f.id]); live.remove('knowledge_source', f.id); }
     db.run('DELETE FROM knowledge_sources WHERE path LIKE ?', [folder + '%']);
     db.saveNow();
     return { ok: true };
@@ -155,6 +156,7 @@ class Rag extends EventEmitter {
       const now = Date.now();
       db.run('INSERT INTO knowledge_sources (id,path,name,kind,status,added_at,state,size_bytes,indexed_at,updated_at,src_mtime) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
         [sourceId, file, name, 'file', hash, now, 'indexed', size, now, now, mtime || 0]);
+      live.register('knowledge_source', sourceId, name, 'knowledge'); // live workspace registration (name only, no path)
       for (let i = 0; i < chunks.length; i++) {
         const vec = await embeddings.embed(chunks[i]);
         db.run('INSERT INTO knowledge_chunks (id,source_id,path,name,chunk_index,content,hash,embedding) VALUES (?,?,?,?,?,?,?,?)', [
@@ -202,12 +204,12 @@ class Rag extends EventEmitter {
       // Re-apply the safety guard before touching the path (a file may have become unsafe).
       const fv = guard.classifyFile(r.path);
       if (!fv.index && fv.reason && !/unsupported|no file extension/i.test(fv.reason)) {
-        db.run('UPDATE knowledge_sources SET state=?, skipped_reason=?, updated_at=? WHERE id=?', ['skipped', fv.reason, now, r.id]); skipped++; continue;
+        db.run('UPDATE knowledge_sources SET state=?, skipped_reason=?, updated_at=? WHERE id=?', ['skipped', fv.reason, now, r.id]); live.remove('knowledge_source', r.id); skipped++; continue;
       }
       let existsNow = false, curMtime: number | null = null, curSize: number | null = null;
       try { const st = fs.statSync(r.path); existsNow = true; curMtime = st.mtimeMs; curSize = st.size; } catch { existsNow = false; }
       const verdict = stale_.classifyStale({ existsNow, currentMtime: curMtime, currentSize: curSize, indexedMtime: r.src_mtime, indexedSize: r.size_bytes });
-      if (verdict === 'removed') { db.run('UPDATE knowledge_sources SET state=?, updated_at=? WHERE id=?', ['removed', now, r.id]); removed++; }
+      if (verdict === 'removed') { db.run('UPDATE knowledge_sources SET state=?, updated_at=? WHERE id=?', ['removed', now, r.id]); live.remove('knowledge_source', r.id); removed++; }
       else if (verdict === 'stale') { db.run('UPDATE knowledge_sources SET state=?, updated_at=? WHERE id=?', ['stale', now, r.id]); stale++; }
       // 'indexed' / 'unknown' → leave as-is (honest; don't fabricate)
     }

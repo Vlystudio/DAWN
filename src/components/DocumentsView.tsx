@@ -5,6 +5,7 @@ import {
   Loader2, RotateCcw, Check, ChevronDown,
 } from 'lucide-react';
 import { useBrainStore } from '../state/brainStore';
+import { PageShellSplit } from '../ui/system';
 
 /**
  * Documents — create/edit local Markdown documents with live preview, local-model AI
@@ -99,9 +100,12 @@ export default function DocumentsView() {
   }
 
   return (
-    <div className="h-full flex">
-      {/* list */}
-      <div className="w-60 shrink-0 border-r border-border bg-bg/40 flex flex-col">
+    <PageShellSplit
+      icon={<FileText size={22} />}
+      title="Documents"
+      subtitle="Local Markdown documents — DAWN can rewrite, summarize, or extract tasks. Each becomes a brain node."
+      sidebarWidth="w-60"
+      sidebar={<>
         <div className="p-3 flex gap-2">
           <button onClick={create} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold border" style={{ color: 'var(--accent)', borderColor: 'rgba(var(--accent-rgb),0.5)', background: 'rgba(var(--accent-rgb),0.1)' }}><Plus size={15} /> New</button>
           <button onClick={importDoc} title="Import .md/.txt/.html/.csv" className="px-3 py-2 rounded-lg border border-border text-dim hover:text-ink"><Upload size={15} /></button>
@@ -118,10 +122,8 @@ export default function DocumentsView() {
           ))}
           {!docs.length ? <div className="text-[11px] text-faint text-center py-8 px-3">No documents yet.<br />Create one or import a file.</div> : null}
         </div>
-      </div>
-
-      {/* editor */}
-      <div className="flex-1 min-w-0 flex flex-col">
+      </>}
+    >
         {!id ? (
           <div className="flex-1 grid place-items-center text-center p-8">
             <div>
@@ -180,7 +182,6 @@ export default function DocumentsView() {
             </div>
           </>
         )}
-      </div>
-    </div>
+    </PageShellSplit>
   );
 }

@@ -90,9 +90,10 @@ The invariants are testable without rendering: e.g. a split shell's `splitBody` 
 host* (fills + shrinks + does **not** scroll) while its columns each scroll; a log shell's header must
 be fixed while exactly the body scrolls. `tests/shellLayout.test.ts` asserts these on the class strings.
 
-**Migrated so far:** Logs → `PageShellLog` (fixed header + scroll box preserved), Model Manager →
-`PageShellPanel`. Others migrate one at a time using the matching variant; System Health tracks the
-remaining list under **Design System → Partial**.
+**Migrated so far:** Logs → `PageShellLog` (fixed header + scroll box preserved), Model Manager / Model
+Hub / **Model Optimizer** → `PageShellPanel`, Notes / **Documents** → `PageShellSplit`. Others migrate
+one at a time using the matching variant; System Health tracks the remaining list under **Design
+System → Partial**.
 
 ## PageShellSplit proof pattern (Notes)
 
@@ -114,5 +115,39 @@ scrolls independently. 10. The page header + New-note/search stay fixed. 11. Emp
 looks right. 12. No clipped content, no overlap, no double-scroll. 13. Creating/deleting a note updates
 the **Workspace Graph** (live hook). If any fail, revert `NotesView` to its pre-beta.14 layout.
 
-**Migrated this batch:** Model Hub (`PageShellPanel`), Notes (`PageShellSplit`, the one split proof).
-Only one split screen was migrated on purpose — verify Notes before rolling the pattern out further.
+**Migrated (beta.14):** Model Hub (`PageShellPanel`), Notes (`PageShellSplit`, the one split proof).
+Only one split screen was migrated in beta.14 on purpose — verify Notes before rolling out further.
+
+## beta.15 — controlled continuation
+
+Following the beta.14 lesson (migrate splits in **small batches** after the flex-host proof), beta.15
+adds exactly:
+
+- **Model Optimizer → `PageShellPanel`** — simple top-scroll page (hardware scores + auto-tune). The
+  fixed toast stays a child; scroll model unchanged. No behaviour change.
+- **Documents → `PageShellSplit`** — the **second** master–detail screen on the split shell. It is
+  structurally identical to Notes (sidebar: New/Import + `flex-1 overflow-y-auto` list; main:
+  empty-state or editor with fixed sub-header + AI toolbar + scrolling body). Same flex-host guarantee
+  — fixed sub-headers stay, list/editor scroll independently, no double-scroll. Documents' live
+  workspace hooks are unchanged (only the view wrapper changed).
+
+### Human visual-verification checklist (Documents, after installing beta.15)
+
+1. Documents opens from the sidebar. 2. Master list on the left, editor on the right. 3. Clicking a doc
+fills the editor. 4. **New** works. 5. **Import** (.md/.txt/.html/.csv) works. 6. Editing title/body +
+autosave ("Saving…→Saved") works. 7. Preview/Edit toggle works. 8. **History** dropdown opens (save/
+restore a version). 9. AI toolbar actions run (brain → THINKING). 10. Export chips (md/txt/html/csv)
+download. 11. The doc list scrolls independently. 12. The editor body scrolls independently. 13. The
+page header + New/Import + editor sub-header/AI toolbar stay fixed. 14. Empty state ("No documents")
+looks right. 15. No clipped content, overlap, or double-scroll. 16. Creating/deleting a doc updates the
+**Workspace Graph** (live hook). If any fail, revert `DocumentsView` to its pre-beta.15 layout.
+
+### Knowledge live workspace hook (beta.15)
+
+Knowledge sources now register/prune in the Workspace Graph **live** (not just on reconcile): `rag.ts`
+calls `live.register('knowledge_source', id, name, 'knowledge')` right after a file is indexed, and
+`live.remove(...)` when a source is removed, skipped, or its folder is deleted. The hook passes the
+**name only — never the full path or content** (privacy). It uses the exact `type`/`feature` of the
+reconcile adapter, so live + reconcile can't diverge and items dedupe by `type+ref_id`
+(`tests/liveHooks.test.ts` guards this against drift). Reconcile remains the fallback; hooked features
+are now Notes/Tasks/Documents/Memories/**Knowledge** (Research/Benchmarks/Email stay reconcile-only).
