@@ -61,6 +61,8 @@ export function gatherSignals(): MaturitySignals {
   try { const info = require('./rag').default.reindexInfo(); chunkStrategyVersion = info.strategyVersion; sourcesNeedReindex = info.needReindex; } catch { /* */ }
   const helperCfg = (() => { const h: any = s.helperModels || {}; return { configured: ['queryRewriteModel', 'hydeModel', 'entailmentModel', 'rerankerModel'].filter((k) => h[k]).length, fallback: h.preferChatModelFallback !== false }; })();
   let helperRuntimeEnabled = false, helperRuntimeState = 'OFF', helperRuntimeReachable = false, helperRuntimeModelConfigured = false, helperRuntimeInstalled = false; let helperRuntimeError: string | null = null;
+  let helperAdaptiveSummary = '';
+  try { const as = require('./rag/adaptiveRouting').default.status(); if (as.enabled) { const away = as.roles.filter((r: any) => !r.decision.preferHelper).map((r: any) => r.role); helperAdaptiveSummary = `adaptive routing ON${away.length ? ` — steering away from ${away.join(', ')} (reversible)` : ' — all roles on helper'}`; } else helperAdaptiveSummary = 'adaptive routing off (manual)'; } catch { /* */ }
   let helperQueueSummary = '', helperPerfSummary = '';
   try { const st = require('./rag/helperRuntime').default.status(); helperRuntimeEnabled = !!st.enabled; helperRuntimeState = st.state; helperRuntimeReachable = !!st.reachable; helperRuntimeModelConfigured = !!st.configured; helperRuntimeInstalled = !!st.installed; helperRuntimeError = st.error; const q = st.queue; if (q) helperQueueSummary = `queue ${q.active} active/${q.queued} queued (cap ${q.capacity}, 1 at a time); session ${q.sessionCompleted} done · ${q.sessionCancelled} cancelled · ${q.sessionTimedOut} timeouts`; const a = st.analytics; if (a && a.totalJobs > 0) helperPerfSummary = `performance: ${a.health} over ${a.totalJobs} job(s)${a.slowestRole ? ` · slowest ${a.slowestRole} p95 ${a.slowestP95Ms}ms` : ''}${a.timeoutProneRole ? ` · timeout-prone ${a.timeoutProneRole}` : ''}${a.lastIssue ? ` · last issue ${a.lastIssue}` : ''}`; } catch { /* */ }
   let ragEvalBestStrategy: string | null = null;
@@ -125,7 +127,7 @@ export function gatherSignals(): MaturitySignals {
     ragEvalLastRunAt, ragEvalCases, ragEvalHitRate, ragEvalGroundedness, ragEvalFixtureCount, ragEvalNegativesLeaked, ragEvalBestStrategy,
     chunkStrategyVersion, sourcesNeedReindex,
     helperModelsConfigured: helperCfg.configured, helperChatFallback: helperCfg.fallback,
-    helperRuntimeEnabled, helperRuntimeState, helperRuntimeReachable, helperRuntimeModelConfigured, helperRuntimeError, helperRuntimeInstalled, helperQueueSummary, helperPerfSummary,
+    helperRuntimeEnabled, helperRuntimeState, helperRuntimeReachable, helperRuntimeModelConfigured, helperRuntimeError, helperRuntimeInstalled, helperQueueSummary, helperPerfSummary, helperAdaptiveSummary,
   };
 }
 

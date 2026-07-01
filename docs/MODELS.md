@@ -123,3 +123,10 @@ The helper runtime records safe, local-only per-role performance (p50/p95 latenc
 rates, health label + advisory hints) with a bounded rolling buffer — **no prompt/response/chunk/source
 text**. See the dashboard under Model Cookbook → Helper runtime → Performance, and
 [LOCAL_KNOWLEDGE.md](LOCAL_KNOWLEDGE.md). Advisory only in this build; adaptive routing is a future loop.
+
+### Adaptive helper routing
+
+Optional (off by default): DAWN uses the safe helper analytics to route a helper role to its honest
+fallback when measured slow/timeout/failure-prone, with cooldown + recovery probing (evidence-based,
+reversible, no private content). Configure/inspect it in Model Cookbook → Helper runtime → Adaptive
+routing; settings live under `helperModels.adaptiveRouting.*`. See [LOCAL_KNOWLEDGE.md](LOCAL_KNOWLEDGE.md).

@@ -244,3 +244,28 @@ Controls (Model Cookbook → Helper runtime → Performance): **Reset session** 
 The export contains only the safe metadata above — no prompt/response/chunk/source content. Analytics are
 **session-only** (in memory); cross-session history is a future loop. If analytics recording ever fails,
 it is swallowed — it can never break retrieval or chat.
+
+## Adaptive helper routing (optional, off by default)
+
+When enabled, DAWN uses the safe helper analytics as **evidence** to route a helper role away from the
+dedicated helper runtime when it's measurably slow or unreliable, then probes and routes back when it
+recovers. It **only steers provider preference** — it never inspects prompt/response content, never
+invents capabilities, and is **fully reversible**.
+
+- **Off by default** (`helperModels.adaptiveRouting.enabled = false`). When off, behaviour is exactly the
+  prior (manual) routing.
+- **Route away** — for a role with ≥`minSamples` (default 12) samples, if p95 latency > `slowP95Ms`
+  (3500), timeout rate > `timeoutRateThreshold` (0.20), or failure rate > `failureRateThreshold` (0.30),
+  the role falls back honestly: rewrite/HyDE → chat (if allowed) else skip; entailment → lexical (if
+  enabled) → chat → skip. It **never** routes away below the minimum sample.
+- **Hysteresis + recovery** — a routed-away role stays away for `cooldownMs` (5 min), then **probes**
+  recovery using the next real eligible helper tasks (no synthetic private content). It routes back only
+  after `recoveryMinSamples` (8) with p95 < `recoveryP95Ms` (2000) and timeout rate < `recoveryTimeoutRate`
+  (0.10) — **one good sample never restores it**, and it won't flap.
+- **Transparent** — the decision (type + reason + evidence numbers) appears in the retrieval trace, the
+  Model Cookbook → Helper runtime → Adaptive routing panel, and System Health. Per-role apply toggles +
+  **Reset** are available. No prompt/response/chunk/source text anywhere.
+
+Adaptive routing is **session-based** (in memory); `persistSafeHistory` exists (default false) but
+cross-session persistence is a future loop. If the adaptive logic ever throws, it safely keeps the helper
+(prior behaviour) — it can never break retrieval or main chat.

@@ -128,6 +128,21 @@ export class HelperAnalytics {
     return present.map((r) => this.roleMetrics(r));
   }
 
+  /** Compact per-role summary for the adaptive-routing decision (safe fields only). */
+  roleSummary(role: Role): { jobs: number; p95Ms: number; timeoutRate: number; failureRate: number; health: string } {
+    const m = this.roleMetrics(role);
+    return { jobs: m.jobs, p95Ms: m.p95TotalMs, timeoutRate: m.timeoutRate, failureRate: m.jobs ? r2(m.failed / m.jobs) : 0, health: m.health };
+  }
+
+  /** Metrics over a recent WINDOW (events since `sinceTs`) — used for recovery probing. */
+  windowSummary(role: Role, sinceTs: number): { jobs: number; p95Ms: number; timeoutRate: number } {
+    const evs = this.forRole(role).filter((e) => e.ts >= sinceTs);
+    const jobs = evs.length;
+    const timeout = evs.filter((e) => e.status === 'timeout').length;
+    const tot = evs.map((e) => e.totalLatencyMs).sort((a, b) => a - b);
+    return { jobs, p95Ms: pct(tot, 95), timeoutRate: jobs ? r2(timeout / jobs) : 0 };
+  }
+
   global(): GlobalMetrics {
     const roles = this.roles();
     const totalJobs = this.events.length;

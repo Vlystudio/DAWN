@@ -10,6 +10,7 @@ import hybridCore from './rag/hybridRetrievalCore';
 import rerankerCore from './rag/rerankerCore';
 import reranker from './rag/reranker';
 import queryExpansion from './rag/queryExpansion';
+import adaptiveRouting from './rag/adaptiveRouting';
 import parsers from './parsers';
 import safety from './safety';
 import guard from './knowledge/knowledgeGuardCore';
@@ -275,6 +276,8 @@ class Rag extends EventEmitter {
       rewriteStatus: rw.status, rewriteQueueMs: rw.queueWaitMs, rewriteRunMs: rw.runMs,
       hydeMode: hy.mode, hydeProvider: hy.provider, hydeStatus: hy.status,
       rerankMode: rr.mode, rerankReason: rr.reason,
+      // Adaptive routing (safe: decision type + evidence numbers only, no prompt/response/chunk text).
+      adaptiveRoutingEnabled: adaptiveRouting.enabled(), rewriteAdaptive: rw.adaptive || null, hydeAdaptive: hy.adaptive || null,
     };
 
     return reranked.map((res) => {

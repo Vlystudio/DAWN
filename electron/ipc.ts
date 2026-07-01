@@ -202,7 +202,7 @@ export function registerIpc() {
   ipcMain.handle('rag:reindexInfo', () => rag.reindexInfo());
   ipcMain.handle('rag:reindexOutdated', () => rag.reindexOutdated());
   // Dedicated helper runtime (a second llama-server for helper tasks)
-  ipcMain.handle('helperRuntime:status', () => ({ ...helperRuntime.status(), roles: helperRuntime.roles() }));
+  ipcMain.handle('helperRuntime:status', () => ({ ...helperRuntime.status(), roles: helperRuntime.roles(), adaptive: require('./services/rag/adaptiveRouting').default.status() }));
   ipcMain.handle('helperRuntime:start', async () => { await helperRuntime.start(); return { ...helperRuntime.status(), roles: helperRuntime.roles() }; });
   ipcMain.handle('helperRuntime:stop', async () => { await helperRuntime.stop(); return { ...helperRuntime.status(), roles: helperRuntime.roles() }; });
   ipcMain.handle('helperRuntime:restart', async () => { await helperRuntime.restart(); return { ...helperRuntime.status(), roles: helperRuntime.roles() }; });
@@ -214,6 +214,11 @@ export function registerIpc() {
   // Helper performance analytics (safe metadata only — never prompt/response/chunk/source text)
   ipcMain.handle('helperRuntime:analytics', () => require('./services/rag/helperAnalyticsCore').default.snapshot(app.getVersion()));
   ipcMain.handle('helperRuntime:resetAnalytics', () => { require('./services/rag/helperAnalyticsCore').default.reset(); return { ok: true }; });
+  // Adaptive helper routing (optional; off by default) — safe status/config only
+  ipcMain.handle('helperRuntime:adaptiveStatus', () => require('./services/rag/adaptiveRouting').default.status());
+  ipcMain.handle('helperRuntime:updateAdaptiveRouting', (_e, patch) => require('./services/rag/adaptiveRouting').default.updateSettings(patch || {}));
+  ipcMain.handle('helperRuntime:resetAdaptiveRouting', () => require('./services/rag/adaptiveRouting').default.reset());
+  ipcMain.handle('helperRuntime:forceRecoveryProbe', (_e, { role }) => require('./services/rag/adaptiveRouting').default.forceRecoveryProbe(role));
   ipcMain.handle('helperRuntime:exportAnalytics', async (e) => {
     const win = BrowserWindow.fromWebContents(e.sender);
     const res = await dialog.showSaveDialog(win!, { title: 'Export helper analytics (safe)', defaultPath: `dawn-helper-analytics-${new Date().toISOString().slice(0, 10)}.json`, filters: [{ name: 'JSON', extensions: ['json'] }] });

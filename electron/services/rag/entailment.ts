@@ -12,6 +12,7 @@ import aid from './localModelAid';
 import helperRuntime from './helperRuntime';
 import helperQueue from './helperQueue';
 import analytics, { statusFor } from './helperAnalyticsCore';
+import adaptiveRouting from './adaptiveRouting';
 import type { Support } from './answerVerificationCore';
 
 function rec(provider: HelperProvider, ok: boolean, queueStatus?: string, reason?: string) {
@@ -27,14 +28,17 @@ export async function verifyClaim(claim: string, evidence: string): Promise<Enta
   if (!s.entailmentEnabled) return { support: null, mode: 'lexical_fallback', provider: 'none', reason: 'disabled' };
   if (!evidence || !evidence.trim()) { rec('lexical', true, undefined, 'no evidence'); return { support: null, mode: 'lexical_fallback', provider: 'lexical', reason: 'no evidence' }; }
 
-  const res = hmCore.resolveHelperTask({
+  const resolve = (helperReady: boolean) => hmCore.resolveHelperTask({
     task: 'entailment', taskEnabled: true,
-    helperRuntimeEnabled: !!s.helperRuntime?.enabled,
-    helperRuntimeReady: helperRuntime.isReady(),
-    chatReady: runtime.isReady(),
-    preferChatFallback: s.helperModels?.preferChatModelFallback !== false,
-    lexicalFallback: true,
+    helperRuntimeEnabled: !!s.helperRuntime?.enabled, helperRuntimeReady: helperReady,
+    chatReady: runtime.isReady(), preferChatFallback: s.helperModels?.preferChatModelFallback !== false, lexicalFallback: true,
   });
+  let res = resolve(helperRuntime.isReady());
+  // Adaptive routing: if the helper is measured slow/timeout/failure-prone for entailment, steer away.
+  if (res.provider === 'helper_runtime' && adaptiveRouting.enabled() && adaptiveRouting.appliesTo('entailment_verifier')) {
+    const decision = adaptiveRouting.decisionFor('entailment_verifier');
+    if (!decision.preferHelper) res = resolve(false); // → lexical (if enabled) → chat → none, honestly
+  }
   if (res.provider === 'none' || res.provider === 'lexical') { rec(res.provider, res.provider === 'lexical', undefined, res.reason); return { support: null, mode: 'lexical_fallback', provider: res.provider, reason: res.reason }; }
 
   const prompt = ecore.buildEntailmentPrompt(claim, evidence);

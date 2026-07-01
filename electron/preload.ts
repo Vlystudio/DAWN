@@ -59,6 +59,10 @@ const api = {
     analytics: () => ipcRenderer.invoke('helperRuntime:analytics'),
     resetAnalytics: () => ipcRenderer.invoke('helperRuntime:resetAnalytics'),
     exportAnalytics: () => ipcRenderer.invoke('helperRuntime:exportAnalytics'),
+    adaptiveStatus: () => ipcRenderer.invoke('helperRuntime:adaptiveStatus'),
+    updateAdaptiveRouting: (patch: any) => ipcRenderer.invoke('helperRuntime:updateAdaptiveRouting', patch),
+    resetAdaptiveRouting: () => ipcRenderer.invoke('helperRuntime:resetAdaptiveRouting'),
+    forceRecoveryProbe: (role: string) => ipcRenderer.invoke('helperRuntime:forceRecoveryProbe', { role }),
   },
   setup: {
     complete: (patch: any) => ipcRenderer.invoke('setup:complete', patch),

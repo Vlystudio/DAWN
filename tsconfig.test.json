@@ -54,6 +54,7 @@
     "electron/services/rag/helperModelCore.ts",
     "electron/services/rag/helperQueue.ts",
     "electron/services/rag/helperAnalyticsCore.ts",
+    "electron/services/rag/adaptiveRoutingCore.ts",
     "electron/services/knowledge/chunkingCore.ts",
     "tests/agentos.test.ts",
     "tests/agentosRuntime.test.ts",
@@ -96,6 +97,7 @@
     "tests/attachments.test.ts",
     "tests/retrieval.test.ts",
     "tests/helperQueue.test.ts",
-    "tests/helperAnalytics.test.ts"
+    "tests/helperAnalytics.test.ts",
+    "tests/adaptiveRouting.test.ts"
   ]
 }

@@ -92,7 +92,7 @@ export interface MaturitySignals {
   helperModelsConfigured?: number; helperChatFallback?: boolean;
   helperRuntimeEnabled?: boolean; helperRuntimeState?: string; helperRuntimeReachable?: boolean;
   helperRuntimeModelConfigured?: boolean; helperRuntimeError?: string | null; helperRuntimeInstalled?: boolean;
-  helperQueueSummary?: string; helperPerfSummary?: string;
+  helperQueueSummary?: string; helperPerfSummary?: string; helperAdaptiveSummary?: string;
 }
 
 const n = (x?: number) => (typeof x === 'number' && isFinite(x) ? x : 0);
@@ -232,6 +232,7 @@ const EVAL: Record<string, Evaluator> = {
       'Helper outputs stay untrusted (never cited, never trigger tools); prompts/responses are not logged to diagnostics',
       'Every helper result records its provenance (helper_runtime / chat / lexical / skipped)',
       `Per-role latency analytics (local-only, safe metadata — no prompt/response/chunk text): p50/p95 latency, success/timeout/cancel rates, health labels + advisory hints${s.helperPerfSummary ? ` — ${s.helperPerfSummary}` : ' (insufficient data until ≥8 samples)'}`,
+      `Adaptive routing (optional, off by default; ${s.helperAdaptiveSummary || 'manual'}): steers a role to the honest fallback when measured slow/timeout/failure-prone, with cooldown + recovery probing — evidence-based, reversible, no private content`,
     ];
     const missing: string[] = [];
     let status: MaturityStatus;

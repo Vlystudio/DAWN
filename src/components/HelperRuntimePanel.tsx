@@ -35,6 +35,8 @@ export default function HelperRuntimePanel() {
   useEffect(() => { load(); const t = setInterval(load, 4000); return () => clearInterval(t); }, []);
   async function resetAna() { setBusy('reset'); try { await window.dawn.helperRuntime.resetAnalytics(); } catch { /* */ } setBusy(''); load(); }
   async function exportAna() { setBusy('export'); setMsg(''); try { const r = await window.dawn.helperRuntime.exportAnalytics(); if (r?.ok) setMsg(`Exported ${r.path}`); } catch { /* */ } setBusy(''); }
+  async function updateAdaptive(patch: any) { setBusy('adaptive'); try { await window.dawn.helperRuntime.updateAdaptiveRouting(patch); } catch { /* */ } setBusy(''); load(); }
+  async function resetAdaptive() { setBusy('adaptive'); try { await window.dawn.helperRuntime.resetAdaptiveRouting(); } catch { /* */ } setBusy(''); load(); }
 
   async function toggle() { setBusy('toggle'); try { const r = await window.dawn.helperRuntime.updateSettings({ enabled: !st?.enabled }); setSt({ ...r.status, roles: st?.roles }); } catch { /* */ } setBusy(''); load(); }
   async function toggleWarm() { setBusy('warm'); try { await window.dawn.helperRuntime.updateSettings({ keepWarm: !st?.keepWarm }); } catch { /* */ } setBusy(''); load(); }
@@ -108,6 +110,30 @@ export default function HelperRuntimePanel() {
         </div>
       ) : null}
 
+      {/* Adaptive routing (optional; off by default) — steers away from a slow/timeout-prone helper */}
+      {(st as any).adaptive ? (
+        <div className="border-t border-border/40 pt-2 mt-2 text-[11px]">
+          <div className="flex items-center gap-2">
+            <span className="text-dim">Adaptive routing</span>
+            <button onClick={() => updateAdaptive({ enabled: !(st as any).adaptive.enabled })} disabled={!!busy} className={`px-2 py-0.5 rounded border ${(st as any).adaptive.enabled ? 'border-neural-cyan/50 text-neural-cyan' : 'border-border text-faint hover:text-ink'}`}>{(st as any).adaptive.enabled ? 'on' : 'off'}</button>
+            <span className="text-faint">— avoids a helper role when measured slow/timeout/failure-prone; probes + restores on recovery</span>
+            {(st as any).adaptive.enabled ? <button onClick={resetAdaptive} disabled={!!busy} className="ml-auto px-2 py-0.5 rounded border border-border text-faint hover:text-ink">Reset</button> : null}
+          </div>
+          {(st as any).adaptive.enabled ? (
+            <div className="mt-1 space-y-0.5">
+              {(st as any).adaptive.roles.map((r: any) => (
+                <div key={r.role} className="flex items-center gap-2">
+                  <span className="w-28 text-dim">{r.role.replace('_', ' ')}</span>
+                  <span className={r.decision.preferHelper ? 'text-neural-green' : 'text-neural-amber'}>{adaptiveLabel(r.decision.decisionType)}</span>
+                  <span className="text-faint truncate">— {r.decision.reason}</span>
+                </div>
+              ))}
+              <div className="text-[10px] text-faint">Thresholds: slow p95 {(st as any).adaptive.config.slowP95Ms}ms · timeout {Math.round((st as any).adaptive.config.timeoutRateThreshold * 100)}% · min {(st as any).adaptive.config.minSamples} samples · cooldown {Math.round((st as any).adaptive.config.cooldownMs / 60000)}m. Fully reversible.</div>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
       {/* Helper performance analytics (safe metadata only — no prompt/response/chunk text) */}
       {ana ? (
         <div className="border-t border-border/40 pt-2 mt-2 text-[11px]">
@@ -159,4 +185,18 @@ function healthColor(h?: string): string {
 }
 function healthLabel(h?: string): string {
   return h === 'healthy' ? 'healthy' : h === 'slow' ? 'slow' : h === 'timeout_prone' ? 'timeout-prone' : h === 'mostly_unavailable' ? 'mostly unavailable' : 'insufficient data';
+}
+function adaptiveLabel(t?: string): string {
+  switch (t) {
+    case 'disabled': return 'disabled';
+    case 'manual': return 'manual';
+    case 'insufficient_data': return 'insufficient data';
+    case 'adaptive_helper_allowed': return 'helper preferred';
+    case 'adaptive_avoid_slow_helper': return 'routing away (slow)';
+    case 'adaptive_avoid_timeout_prone_helper': return 'routing away (timeouts)';
+    case 'adaptive_avoid_failure_prone_helper': return 'routing away (failures)';
+    case 'adaptive_avoid_unavailable_helper': return 'routing away (unavailable)';
+    case 'adaptive_recovery_probe': return 'recovery probe';
+    default: return t || '';
+  }
 }
