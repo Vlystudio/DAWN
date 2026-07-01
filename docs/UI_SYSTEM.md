@@ -91,9 +91,13 @@ host* (fills + shrinks + does **not** scroll) while its columns each scroll; a l
 be fixed while exactly the body scrolls. `tests/shellLayout.test.ts` asserts these on the class strings.
 
 **Migrated so far:** Logs → `PageShellLog` (fixed header + scroll box preserved), Model Manager / Model
-Hub / **Model Optimizer** → `PageShellPanel`, Notes / **Documents** → `PageShellSplit`. Others migrate
-one at a time using the matching variant; System Health tracks the remaining list under **Design
-System → Partial**.
+Hub / **Model Optimizer** / **Tasks** / **Backup** → `PageShellPanel`, Notes / **Documents** →
+`PageShellSplit`. Others migrate one at a time using the matching variant; System Health tracks the
+remaining list under **Design System → Partial**.
+
+The full, code-backed status (which screens, which variant, and — for split screens — whether a human
+has visually verified them) lives in **[`docs/UI_MIGRATION_CHECKLIST.md`](UI_MIGRATION_CHECKLIST.md)**,
+generated from the `electron/services/uiMigrationCore.ts` registry that System Health also reads.
 
 ## PageShellSplit proof pattern (Notes)
 
@@ -151,3 +155,18 @@ calls `live.register('knowledge_source', id, name, 'knowledge')` right after a f
 reconcile adapter, so live + reconcile can't diverge and items dedupe by `type+ref_id`
 (`tests/liveHooks.test.ts` guards this against drift). Reconcile remains the fallback; hooked features
 are now Notes/Tasks/Documents/Memories/**Knowledge** (Research/Benchmarks/Email stay reconcile-only).
+
+## beta.16 — verification gate + two more simple panels
+
+- **Migration registry (`electron/services/uiMigrationCore.ts`)** — a pure, unit-tested source of
+  truth for the migration: each screen, its shell variant, and (for split screens) its human
+  verification state. System Health's Design System area and `docs/UI_MIGRATION_CHECKLIST.md` both
+  read it, so the three can't drift. It exposes `canMigrateAnotherSplit()`, which stays **false**
+  while any split screen is pending — the rule "don't roll out more splits until Notes/Documents are
+  visually verified" is enforced in code, not memory.
+- **Tasks → `PageShellPanel`** and **Backup & Restore → `PageShellPanel`** — two clean single-scroll
+  panels migrated (identical wrapper to Model Optimizer). Tasks keeps its inline-expanding rows and
+  live hooks; Backup keeps its RESTORE safety flow (typed confirm + optional password + approval).
+  No split screen was migrated this batch — the gate is closed while Notes/Documents await a human
+  pass. Deferred with reasons: Calendar (inline toolbar header), Skills (split — gated), Security
+  (redaction-sensitive), Settings (nested scrollers).

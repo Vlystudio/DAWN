@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   Archive, Download, ShieldCheck, RotateCcw, FolderOpen, Loader2, AlertTriangle, CheckCircle2, Trash2, FileCheck2, X,
 } from 'lucide-react';
+import { PageShellPanel } from '../ui/system';
 
 /**
  * Backup / Restore — create a verified .dawnbackup of DAWN's state, verify archives, and
@@ -55,10 +56,12 @@ export default function BackupView() {
   }
 
   return (
-    <div className="h-full overflow-y-auto">
-      <div className="p-6 max-w-2xl mx-auto">
-        <div className="flex items-center gap-2 mb-1"><Archive size={18} style={{ color: 'var(--accent)' }} /><h1 className="text-xl font-bold">Backup &amp; Restore</h1></div>
-        <p className="text-sm text-dim mb-4">Snapshot DAWN's state to a local <code>.dawnbackup</code> file. Vault secrets are included only in encrypted form. Restores always create a recoverable safety snapshot first.</p>
+    <PageShellPanel
+      width="max-w-2xl"
+      icon={<Archive size={22} />}
+      title="Backup & Restore"
+      subtitle={<>Snapshot DAWN's state to a local <code>.dawnbackup</code> file. Vault secrets are included only in encrypted form. Restores always create a recoverable safety snapshot first.</>}
+    >
         {msg ? <div className="text-xs text-neural-cyan mb-3">{msg}</div> : null}
 
         <div className="glass p-4 mb-4">
@@ -100,7 +103,6 @@ export default function BackupView() {
             {!history.length ? <div className="text-[11px] text-faint">No backups yet.</div> : null}
           </div>
         </div>
-      </div>
 
       {restore ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4" onClick={() => setRestore(null)}>
@@ -120,7 +122,7 @@ export default function BackupView() {
           </div>
         </div>
       ) : null}
-    </div>
+    </PageShellPanel>
   );
 }
 

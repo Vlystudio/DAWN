@@ -14,6 +14,7 @@ import models from '../models';
 import bench from './benchCore';
 import { runModel } from './runner';
 import { parseModelId } from '../optimizer/modelMetadata';
+import live from '../workspace/liveHooks';
 
 const newId = () => crypto.randomUUID();
 const now = () => Date.now();
@@ -49,6 +50,7 @@ class BenchmarkService extends EventEmitter {
         [id, modelPath, name, info?.quant || parsed.quant, parsed.paramsB, status, m.error || '', m.oom ? 1 : 0,
           m.loadMs, m.firstTokenMs, m.totalMs, m.tokensPerSec, m.promptTokens, m.completionTokens, m.backend, m.gpuLayers,
           m.contextLength, m.estMaxContext, m.estRamGB, now(), JSON.stringify({ stopped: m.stopped })]);
+      live.register('benchmark', id, name, 'benchmark'); // live workspace registration (public model name; reconcile fills status/quant)
 
       // Restore the user's chat model.
       if (original && original !== settings.get().modelPath) { try { await runtime.switchModel(original); } catch { /* */ } }
@@ -80,6 +82,7 @@ class BenchmarkService extends EventEmitter {
 
   delete(id: string) {
     db.run('DELETE FROM benchmarks WHERE id=?', [id]);
+    live.remove('benchmark', id); // live prune of the workspace item (delete has no reconcile otherwise)
     return true;
   }
 }

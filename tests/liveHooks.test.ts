@@ -14,8 +14,11 @@ test('Live Workspace Hooks is honestly PARTIAL and lists reconcile-only features
   assert.ok(r.works.some((w) => /Notes.*Tasks.*Documents.*Memories/.test(w)), 'lists the hooked features');
   assert.ok(r.works.some((w) => /Knowledge/i.test(w)), 'Knowledge is now live-hooked');
   assert.ok(r.works.some((w) => /name only, no path/i.test(w)), 'knowledge hook stays name-only (no path/content leak)');
+  assert.ok(r.works.some((w) => /Benchmarks/i.test(w)), 'Benchmarks is now live-hooked');
+  assert.ok(r.works.some((w) => /public model name only/i.test(w)), 'benchmark hook registers the public model name only');
   assert.ok(r.missing.some((m) => /reconcile-only/i.test(m)), 'must list what is still reconcile-only');
   assert.ok(!r.missing.some((m) => /Knowledge/i.test(m)), 'Knowledge is no longer in the reconcile-only list');
+  assert.ok(!r.missing.some((m) => /Benchmark/i.test(m)), 'Benchmarks is no longer in the reconcile-only list');
 });
 
 test('Knowledge live hook matches the reconcile adapter (no drift, no double-registration)', () => {
@@ -28,6 +31,15 @@ test('Knowledge live hook matches the reconcile adapter (no drift, no double-reg
   assert.deepEqual(def!.labelCols, ['name'], 'label is the name only — never the full path (privacy)');
   // The adapter excludes removed/skipped rows; the live hook prunes on exactly those transitions.
   assert.ok(/state IN \('indexed','stale'\)/.test(def!.extraWhere || ''), 'active states = indexed/stale (stale stays, removed/skipped pruned)');
+});
+
+test('Benchmark live hook matches the reconcile adapter (no drift, public label only)', () => {
+  // benchmark.ts calls live.register('benchmark', id, name, 'benchmark') on run and live.remove on delete.
+  const def = ADAPTER_DEFS.find((d) => d.feature === 'benchmark');
+  assert.ok(def, 'a benchmark reconcile adapter exists');
+  assert.equal(def!.type, 'benchmark', 'live hook type must equal the adapter type (dedupes by type+ref_id)');
+  assert.equal(def!.feature, 'benchmark', 'live hook sourceFeature must equal the adapter feature');
+  assert.deepEqual(def!.labelCols, ['model_name'], 'label is the public model name — no secrets');
 });
 
 const DDL = `

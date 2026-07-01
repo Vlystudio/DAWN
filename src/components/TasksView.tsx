@@ -3,6 +3,7 @@ import {
   CheckSquare, Square, Plus, Trash2, AlertTriangle, Bot, Loader2, ChevronDown, ChevronRight, Clock, Repeat, Bell,
 } from 'lucide-react';
 import { useBrainStore } from '../state/brainStore';
+import { PageShellPanel } from '../ui/system';
 
 /** Tasks — title/details/due/priority/status, recurrence, reminders, history, and
  *  "Ask DAWN to work on this" (local-model plan). Overdue tasks are flagged (and glow red in the brain). */
@@ -61,11 +62,12 @@ export default function TasksView() {
   const active = tasks.filter((t) => !t.overdue);
 
   return (
-    <div className="h-full overflow-y-auto">
-      <div className="p-6 max-w-3xl mx-auto">
-        <div className="flex items-center gap-2 mb-1"><CheckSquare size={18} style={{ color: 'var(--accent)' }} /><h1 className="text-xl font-bold">Tasks</h1></div>
-        <p className="text-sm text-dim mb-4">Track what needs doing. Set due dates and reminders, make tasks recurring, and ask DAWN to plan any task.</p>
-
+    <PageShellPanel
+      width="max-w-3xl"
+      icon={<CheckSquare size={22} />}
+      title="Tasks"
+      subtitle="Track what needs doing. Set due dates and reminders, make tasks recurring, and ask DAWN to plan any task."
+    >
         {/* add */}
         <div className="glass p-3 mb-4">
           <div className="flex gap-2 items-center flex-wrap">
@@ -89,8 +91,7 @@ export default function TasksView() {
 
         <button onClick={() => setShowDone((s) => !s)} className="mt-4 text-xs text-faint hover:text-ink inline-flex items-center gap-1">{showDone ? <ChevronDown size={13} /> : <ChevronRight size={13} />} Completed</button>
         {showDone ? <div className="space-y-1.5 mt-2 opacity-70">{done.map((t) => <Row key={t.id} t={t} {...{ complete, uncomplete, setField, remove, expand, expanded, detail, ask, busy, plan }} />)}</div> : null}
-      </div>
-    </div>
+    </PageShellPanel>
   );
 }
 

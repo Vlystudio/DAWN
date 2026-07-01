@@ -110,5 +110,5 @@ is the pure, tested `buildWorkspaceSearchSql` (parameterized, `excludeId`, type/
 
 ## Limitations / next steps
 
-- Auto-registration has **live hooks** for Notes, Tasks, Documents, and Memories (instant register/update/prune on CRUD, idempotent); everything else is **reconcile-based** (scans real sources on Workspace open / Brain rebuild). Reconcile remains the fallback and stays idempotent.
+- Auto-registration has **live hooks** for Notes, Tasks, Documents, Memories, **Knowledge sources** (register on index; prune on removed/skipped/folder-delete — **name only, never the full path/content**), and **Benchmarks** (register on run; prune on delete — **public model name only**). All are instant register/update/prune on CRUD and idempotent (items dedupe by `type+ref_id`, using the exact `type`/`feature` of the matching reconcile adapter so live + reconcile can't diverge; `tests/liveHooks.test.ts` guards this). Still **reconcile-only**: Research and Email. Reconcile remains the fallback for everything and stays idempotent (scans real sources on Workspace open / Brain rebuild). No vault/auth/audit source is ever live-registered.
 - Brain node details now expose inline linking for workspace_item nodes (Related items + "+ Link…" using the visual picker).

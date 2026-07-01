@@ -78,6 +78,7 @@
     "tests/knowledgeStale.test.ts",
     "tests/liveHooks.test.ts",
     "tests/statusMap.test.ts",
-    "tests/shellLayout.test.ts"
+    "tests/shellLayout.test.ts",
+    "tests/uiMigration.test.ts"
   ]
 }

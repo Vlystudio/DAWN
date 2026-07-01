@@ -7,6 +7,7 @@
  * This page must never lie: statuses are derived from real persisted state, and every area maps to
  * a real settings route + docs file. No I/O here — the electron service feeds in signals.
  */
+import uiMig from './uiMigrationCore';
 
 export type MaturityStatus =
   | 'COMPLETE'        // wired end-to-end and in active/usable shape
@@ -149,7 +150,7 @@ const EVAL: Record<string, Evaluator> = {
   workspace_autoreg: (s) => ({ status: 'COMPLETE', works: ['8 real sources (chat/memory/notes/tasks/documents/research/benchmark/email)', 'Idempotent upsert + orphan pruning', 'Runs on Workspace open + Brain rebuild', `${n(s.workspaceRegistered)} registered`], missing: [] }),
   workspace_linking: () => ({ status: 'COMPLETE', works: ['Visual item picker (search + type filter, no IDs)', 'Link dialog with relationship type', 'Friendly "already linked" handling; self/invalid blocked', 'Used in Workspace + Chat "Link" action', 'Related panel: add / remove / open / filter'], missing: [] }),
   brain_linking: () => ({ status: 'COMPLETE', works: ['Brain node details show related items for workspace_item nodes', '+ Link… uses the visual picker (no IDs)', 'Self/invalid blocked; duplicate = friendly; vault/auth/audit never appear'], missing: [] }),
-  workspace_livehooks: () => ({ status: 'PARTIAL', works: ['Notes, Tasks, Documents, Memories, and Knowledge sources register/update/prune instantly (idempotent; knowledge = name only, no path/content)', 'Reconcile remains the fallback (Workspace open + Brain rebuild)'], missing: ['Research/Benchmarks/Email remain reconcile-only (no live hook yet)'], nextAction: 'Extend live hooks to research/benchmarks/email' }),
+  workspace_livehooks: () => ({ status: 'PARTIAL', works: ['Notes, Tasks, Documents, Memories, Knowledge sources, and Benchmarks register/update/prune instantly (idempotent; knowledge = name only, no path/content; benchmark = public model name only)', 'Reconcile remains the fallback (Workspace open + Brain rebuild)'], missing: ['Research and Email remain reconcile-only (no live hook yet)'], nextAction: 'Extend live hooks to research/email' }),
   memory: (s) => ({ status: n(s.memories) > 0 ? 'COMPLETE' : 'PARTIAL', works: ['Add/edit/pin memories', 'Cited recall in chat'], missing: n(s.memories) > 0 ? [] : ['No memories saved yet'], nextAction: n(s.memories) > 0 ? undefined : 'Save a memory from chat' }),
   knowledge: (s) => n(s.indexedFolders) > 0
     ? { status: n(s.knowledgeChunks) > 0 ? 'COMPLETE' : 'PARTIAL', works: ['Folder indexing with lifecycle state (indexed/stale/failed/removed)', 'Per-file stale/removed detection (Check for changes)', 'Cited retrieval with honest precision', s.embeddingsAvailable ? 'Embeddings' : 'Keyword fallback', 'Protected-path skipping with reasons'], missing: [...(n(s.knowledgeChunks) > 0 ? (s.embeddingsAvailable ? [] : ['Embedding model (using keyword fallback)']) : ['Index has no chunks yet']), ...(n(s.knowledgeFailed) > 0 ? [`${n(s.knowledgeFailed)} source(s) failed to index`] : []), ...(n(s.knowledgeStale) > 0 ? [`${n(s.knowledgeStale)} stale source(s) — re-index to refresh`] : []), 'Page/section citation precision depends on parser support (honestly "not available" otherwise)'], nextAction: n(s.knowledgeStale) > 0 ? 'Re-index to refresh stale sources' : (n(s.knowledgeChunks) > 0 ? undefined : 'Re-index your folders') }
@@ -192,7 +193,28 @@ const EVAL: Record<string, Evaluator> = {
   settings: () => ({ status: 'COMPLETE', works: ['Durable JSON config + backup copy'], missing: [] }),
   logs: () => ({ status: 'COMPLETE', works: ['Runtime/tool/error logs', 'Redacted'], missing: [] }),
   onboarding: (s) => ({ status: yes(s.firstRunComplete) ? 'COMPLETE' : 'PARTIAL', works: ['First-run model/memory/knowledge setup', 'Live Setup Center (status + deep links from System Health)'], missing: yes(s.firstRunComplete) ? [] : ['First run not completed'], nextAction: yes(s.firstRunComplete) ? 'Open Setup Center' : 'Finish first-run setup' }),
-  design_system: () => ({ status: 'PARTIAL', works: ['Shell library incl. LAYOUT-SAFE VARIANTS: PageShell, PageShellSplit (master–detail), PageShellPanel, PageShellLog (fixed header + scroll box), PageShellCanvas — layout invariants unit-tested', 'Central status map is the single source for labels/tones (StatusBadge, System Health, Setup Center, Model Cookbook, Skills risk colours)', 'Migrated: System Health, Setup Center, Workspace, Email wizard, Model Cookbook, Logs (PageShellLog), Model Manager + Model Hub + Model Optimizer (PageShellPanel), Notes + Documents (PageShellSplit — master–detail proof pattern)'], missing: ['Still on bespoke layouts: Dashboard, Research, Tasks, Calendar, Tools/Skills, Security/Vault, Backup, integrations, Settings — migrate one at a time using the matching shell variant + a visual check'], nextAction: 'Roll out PageShellSplit to more master–detail screens (Research/Skills next) after visually verifying Documents' }),
+  design_system: () => {
+    // Lists derived from the single migration registry (uiMigrationCore) so System Health, the
+    // checklist doc, and tests can never drift. Split screens awaiting a human check are named
+    // honestly, and while any is pending we do NOT migrate another split screen.
+    const pending = uiMig.pendingSplitVerification();
+    const migrated = uiMig.MIGRATED_SCREENS.map(uiMig.describe).join(', ');
+    const missing: string[] = [];
+    if (pending.length) missing.push(`Human visual verification PENDING for split screens: ${pending.join(', ')} — no further split-screen migration until confirmed (see docs/UI_MIGRATION_CHECKLIST.md)`);
+    missing.push(`Still on bespoke layouts: ${uiMig.UNMIGRATED_SCREENS.join(', ')} — migrate one at a time using the matching shell variant + a visual check`);
+    return {
+      status: 'PARTIAL' as MaturityStatus,
+      works: [
+        'Shell library incl. LAYOUT-SAFE VARIANTS: PageShell, PageShellSplit (master–detail), PageShellPanel, PageShellLog (fixed header + scroll box), PageShellCanvas — layout invariants unit-tested',
+        'Central status map is the single source for labels/tones (StatusBadge, System Health, Setup Center, Model Cookbook, Skills risk colours)',
+        `Migrated: also System Health, Setup Center, Workspace, Email wizard, Model Cookbook; ${migrated}`,
+      ],
+      missing,
+      nextAction: pending.length
+        ? `Confirm ${pending.join(' & ')} visually, then continue; meanwhile only simple PageShellPanel screens migrate (next safe: ${uiMig.NEXT_SAFE_CANDIDATES.join('; ')})`
+        : 'Roll out PageShellSplit to the next master–detail screen (Skills/Research), one at a time with a visual check',
+    };
+  },
   status_language: () => ({ status: 'COMPLETE', works: ['One tested status map (src/lib/statusMap): feature/knowledge/retrieval/modelFit/toolRisk/setup', 'Label + tone + plain-English explanation per status', 'Unknown codes resolve to a neutral "Unknown" (never crash/fake)', 'Adopted by StatusBadge, System Health, Setup Center, Model Cookbook'], missing: [] }),
   health: () => ({ status: 'COMPLETE', works: ['Honest, live feature completion map'], missing: [] }),
   diagnostics: () => ({ status: 'COMPLETE', works: ['Health checks per area', 'One-click redacted diagnostics export', 'Copy error summary'], missing: [] }),
