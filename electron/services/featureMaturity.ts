@@ -48,11 +48,15 @@ export function gatherSignals(): MaturitySignals {
   // Retrieval quality signals (hybrid mode + eval last-run, if any)
   let ragRetrievalMode = 'unavailable', ragEmbeddedChunks = 0, ragTotalChunks = 0;
   try { const r = require('./rag').default; const info = r.retrievalInfo ? r.retrievalInfo() : null; if (info) { ragRetrievalMode = info.mode; ragEmbeddedChunks = info.embeddedChunks; ragTotalChunks = info.totalChunks; } } catch { /* */ }
-  let ragEvalLastRunAt = 0, ragEvalCases = 0; let ragEvalHitRate: number | null = null; let ragEvalGroundedness: number | null = null;
+  let ragEvalLastRunAt = 0, ragEvalCases = 0, ragEvalFixtureCount = 0, ragEvalNegativesLeaked = 0;
+  let ragEvalHitRate: number | null = null; let ragEvalGroundedness: number | null = null;
   try {
-    const p = require('path').join(require('electron').app.getAppPath(), 'evals', 'last-results.json');
-    if (require('fs').existsSync(p)) { const j = JSON.parse(require('fs').readFileSync(p, 'utf8')); const su = j.summary || {}; ragEvalLastRunAt = su.ranAt || 0; ragEvalCases = su.cases || 0; ragEvalHitRate = su.retrievalHitRate ?? null; ragEvalGroundedness = su.meanGroundedness ?? null; }
-  } catch { /* not run in this install — honest */ }
+    const est = require('./rag/ragEval').default.status();
+    ragEvalFixtureCount = est.fixtureCount || 0;
+    if (est.hasRun && est.summary) { const su = est.summary; ragEvalLastRunAt = su.ranAt || 0; ragEvalCases = su.cases || 0; ragEvalHitRate = su.retrievalHitRate ?? null; ragEvalGroundedness = su.meanGroundedness ?? null; ragEvalNegativesLeaked = su.negativesLeaked || 0; }
+  } catch { /* */ }
+  let rerankMode = 'disabled';
+  try { rerankMode = require('./rag/reranker').default.status().mode || 'disabled'; } catch { /* */ }
 
   let visionMmprojConfigured = false, visionSetupState = 'not_configured';
   try { const vc = require('./vision/visionChat').default; const c = vc.capabilities ? vc.capabilities() : null; if (c) { visionChatReady = !!c.ready; visionChatMode = c.mode || 'none'; visionChatReason = c.reason || ''; visionChatNextAction = c.nextAction || ''; visionModelConfigured = !!c.modelConfigured; visionCliPresent = !!c.cliPresent; } const v = vc.validate ? vc.validate() : null; if (v) { visionMmprojConfigured = !!v.mmprojConfigured; visionSetupState = v.state || 'not_configured'; } } catch { /* */ }
@@ -107,9 +111,10 @@ export function gatherSignals(): MaturitySignals {
     chatImages: tryNum(() => count('chat_attachments', "kind='image'")),
     ragRetrievalMode, ragEmbeddedChunks, ragTotalChunks,
     answerVerificationEnabled: s.answerVerificationEnabled !== false,
+    entailmentEnabled: !!s.entailmentEnabled,
     queryRewriteEnabled: !!s.queryRewriteEnabled, hydeEnabled: !!s.hydeEnabled,
-    rerankerEnabled: !!s.rerankerEnabled, rerankerConfigured: !!(s.rerankerEnabled && s.rerankerModelPath),
-    ragEvalLastRunAt, ragEvalCases, ragEvalHitRate, ragEvalGroundedness,
+    rerankerEnabled: !!s.rerankerEnabled, rerankerConfigured: !!(s.rerankerEnabled && s.rerankerModelPath), rerankMode,
+    ragEvalLastRunAt, ragEvalCases, ragEvalHitRate, ragEvalGroundedness, ragEvalFixtureCount, ragEvalNegativesLeaked,
   };
 }
 

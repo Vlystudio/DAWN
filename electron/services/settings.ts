@@ -73,6 +73,7 @@ export interface Settings {
   // --- Retrieval quality (hybrid + rewrite + rerank + verification) ---
   hybridRetrievalEnabled: boolean;   // vector + BM25 keyword fusion (default on)
   answerVerificationEnabled: boolean; // groundedness check of RAG answers (default on)
+  entailmentEnabled: boolean;         // optional local-model entailment verification (default off)
   queryRewriteEnabled: boolean;       // local-model query rewriting (default off)
   hydeEnabled: boolean;               // HyDE-style expansion (default off)
   maxRewriteQueries: number;
@@ -263,6 +264,7 @@ export const DEFAULTS: Settings = {
   ragMinScore: 0.05,
   hybridRetrievalEnabled: true,
   answerVerificationEnabled: true,
+  entailmentEnabled: false,
   queryRewriteEnabled: false,
   hydeEnabled: false,
   maxRewriteQueries: 2,

@@ -38,6 +38,10 @@ const api = {
     pause: () => ipcRenderer.invoke('rag:pause'),
     deleteAll: () => ipcRenderer.invoke('rag:deleteAll'),
     onProgress: (cb: (p: any) => void) => sub('rag:progress', cb),
+    retrievalTrace: () => ipcRenderer.invoke('rag:retrievalTrace'),
+    rerankerStatus: () => ipcRenderer.invoke('rag:rerankerStatus'),
+    evalStatus: () => ipcRenderer.invoke('rag:evalStatus'),
+    runEval: () => ipcRenderer.invoke('rag:runEval'),
   },
   setup: {
     complete: (patch: any) => ipcRenderer.invoke('setup:complete', patch),

@@ -55,6 +55,7 @@ export default function ChatView({
   const [error, setError] = useState('');
   const [drafts, setDrafts] = useState<any[]>([]);
   const [verification, setVerification] = useState<any>(null);
+  const [retrievalTrace, setRetrievalTrace] = useState<any>(null);
   const [verifyOpen, setVerifyOpen] = useState(false);
   const [attachError, setAttachError] = useState('');
   const [visionCap, setVisionCap] = useState<any>(null);
@@ -94,13 +95,14 @@ export default function ChatView({
       setStreamText(streamRef.current);
       voice.feed(content);
     });
-    const offDone = window.dawn.chat.onDone(async ({ conversationId, verification }: any) => {
+    const offDone = window.dawn.chat.onDone(async ({ conversationId, verification, retrieval }: any) => {
       if (conversationId !== idRef.current) return;
       voice.flush();
       setStreaming(false);
       streamRef.current = '';
       setStreamText('');
       setVerification(verification || null);
+      setRetrievalTrace(retrieval || null);
       await loadConv(conversationId);
       onConvChange();
     });
@@ -187,6 +189,7 @@ export default function ChatView({
     setDrafts([]);
     setAttachError('');
     setVerification(null);
+    setRetrievalTrace(null);
     setStreaming(true);
     streamRef.current = '';
     setStreamText('');
@@ -333,7 +336,15 @@ export default function ChatView({
                       {verification.warning ? <div className="text-neural-amber mt-0.5">{verification.warning}</div> : null}
                       {verifyOpen ? (
                         <div className="mt-1.5 border-l-2 border-border pl-2 space-y-1">
-                          <div className="text-faint">Grounding is a local lexical-overlap check against your retrieved sources — not an external judge. Groundedness {Math.round((verification.groundedness || 0) * 100)}%.</div>
+                          {retrievalTrace ? (
+                            <div className="text-faint">Retrieval: <span className="text-dim">{retrievalTrace.retrievalMode}</span>
+                              {retrievalTrace.rerankMode && retrievalTrace.rerankMode !== 'disabled' ? <span> · rerank {retrievalTrace.rerankMode}</span> : null}
+                              {retrievalTrace.rewriteMode && retrievalTrace.rewriteMode !== 'disabled' ? <span> · rewrite {retrievalTrace.rewriteMode}</span> : null}
+                              {retrievalTrace.hydeMode && retrievalTrace.hydeMode !== 'disabled' ? <span> · HyDE {retrievalTrace.hydeMode}</span> : null}
+                              {retrievalTrace.rewriteVariants?.length ? <span className="text-faint"> · variants: {retrievalTrace.rewriteVariants.slice(0, 3).join(' / ')}</span> : null}
+                            </div>
+                          ) : null}
+                          <div className="text-faint">Grounding: {verification.mode === 'entailment' ? 'local-model entailment (falls back to lexical per claim)' : 'local lexical-overlap check'} against your retrieved sources — not an external judge. Groundedness {Math.round((verification.groundedness || 0) * 100)}%.</div>
                           {(verification.claims || []).map((c: any, k: number) => (
                             <div key={k} className="flex items-start gap-1.5">
                               <span className={c.support === 'supported' ? 'text-neural-green' : c.support === 'partially_supported' ? 'text-neural-cyan' : 'text-neural-amber'}>

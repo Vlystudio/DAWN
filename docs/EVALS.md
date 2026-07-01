@@ -51,3 +51,10 @@ A case with **no** expectations (`expectedSourceIds` / `expectedKeywords` / `ans
 
 System Health → **RAG Eval Harness** shows the last run's cases + hit rate + groundedness (or "not run
 yet"). Implementation: pure `ragEvalCore.ts`, tested in `tests/retrieval.test.ts`.
+
+## In-app eval (installed build)
+
+The dev set isn't bundled into the installed app, so DAWN embeds a small **public fixture** in code.
+**Local Knowledge → Retrieval quality → Run eval** runs it in-app (deterministic, offline, no model/
+network, no user files), persists to userData, and System Health → **RAG Eval Harness** reflects the last
+run (hit-rate, groundedness, negatives-leaked). So the installed app reports **real** numbers after Run.

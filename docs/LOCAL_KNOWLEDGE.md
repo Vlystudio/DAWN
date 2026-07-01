@@ -132,3 +132,29 @@ the model is unavailable or times out (`rewriteTimeoutMs`).
 
 RAG answers are checked against the retrieved chunks — see [ANSWER_VERIFICATION.md](ANSWER_VERIFICATION.md).
 Measure retrieval + grounding quality with the eval harness — see [EVALS.md](EVALS.md).
+
+## Query rewrite + HyDE (now local-model wired)
+
+`queryRewriteEnabled` / `hydeEnabled` (default **off**) are now real. When enabled, DAWN calls the
+**local model** (bundled llama-server, never cloud) before searching:
+- **Query rewrite** generates up to `maxRewriteQueries` alternative queries; their tokens widen the
+  **BM25 keyword** search. Rewrites are **retrieval aids only** — never the answer, never evidence.
+- **HyDE** generates a short hypothetical passage; its text is appended to the query **only to widen the
+  vector search** (embedding). HyDE text is **never cited, never stored as a source, never obeyed.**
+Both use a timeout (`rewriteTimeoutMs`) and **fall back to the original query** on any failure — reported
+honestly as `fallback` in the retrieval trace. Cores: `queryExpansionCore.ts` (tested).
+
+## Reranker (real embedding-similarity path)
+
+After hybrid retrieval, an honest rerank stage reorders the top `maxRerankCandidates`:
+- **Embedding similarity** (`rerankerEnabled` + embeddings present) — a real local rerank by cosine.
+- **Heuristic** — hybrid (RRF + title boost) order kept when embeddings are unavailable.
+- **Cross-encoder** — only if a real cross-encoder is loaded (**not shipped → never claimed**). A
+  configured `rerankerModelPath` does *not* fake cross-encoder; DAWN falls to embedding-similarity and
+  says so. Every result keeps a score trace (hybrid / rerank / final). Core: `rerankerCore.ts`.
+
+## Retrieval debug (safe)
+
+Expand the grounding line under a chat answer to see the retrieval trace: **mode** (hybrid/vector/
+keyword), **rerank** mode, **rewrite/HyDE** status, and the rewritten query variants — names/modes only,
+never paths or chunk text. Local Knowledge shows the reranker mode + the in-app **RAG eval**.

@@ -9,6 +9,10 @@ import assert from 'node:assert';
 import hy from '../electron/services/rag/hybridRetrievalCore';
 import av from '../electron/services/rag/answerVerificationCore';
 import ev from '../electron/services/rag/ragEvalCore';
+import qx from '../electron/services/rag/queryExpansionCore';
+import rk from '../electron/services/rag/rerankerCore';
+import en from '../electron/services/rag/entailmentCore';
+import fixture from '../electron/services/rag/ragEvalFixture';
 
 // --- hybrid retrieval (Loop 94) ---------------------------------------------
 const DOCS = [
@@ -99,4 +103,55 @@ test('ragEvalCore: an answer with no supporting corpus scores low groundedness (
     expectedKeywords: ['paris'], answer: 'The capital of France is Paris.',
   }]);
   assert.ok((scores[0].groundedness ?? 1) < 0.3, 'ungrounded answer is honestly low');
+});
+
+test('embedded eval fixture runs clean (valid cases, no negatives leaked)', () => {
+  const { summary } = ev.runEval(fixture.cases);
+  assert.ok(summary.cases >= 3 && summary.valid >= 2);
+  assert.equal(summary.negativesLeaked, 0);
+});
+
+// --- query rewrite / HyDE core (Loops 101/102) ------------------------------
+test('parseRewrite: strips list markers/quotes, dedupes, excludes the original, caps variants', () => {
+  const out = qx.parseRewrite('1. treating varroa mites\n- "oxalic acid treatment"\nhow to treat varroa mites\nvarroa control methods', 'how to treat varroa mites', 2);
+  assert.equal(out.variants.length, 2);
+  assert.ok(!out.variants.map((v) => v.toLowerCase()).includes('how to treat varroa mites'), 'original excluded');
+  assert.ok(out.variants[0] === 'treating varroa mites');
+  assert.ok(out.keywords.includes('varroa'));
+});
+test('parseRewrite handles malformed/empty output (honest empty variants)', () => {
+  assert.deepEqual(qx.parseRewrite('', 'q', 2).variants, []);
+  assert.deepEqual(qx.parseRewrite('Here are some queries:', 'q', 2).variants, []); // instruction echo dropped
+});
+test('sanitizeHyde strips control chars + caps length; combinedKeywordQuery dedupes', () => {
+  const dirty = 'A passage.' + String.fromCharCode(0, 7) + ' With   spaces.';
+  assert.equal(qx.sanitizeHyde(dirty), 'A passage. With spaces.');
+  assert.equal(qx.sanitizeHyde('x'.repeat(1000), 10).length, 10);
+  assert.equal(qx.combinedKeywordQuery('cat', ['cat', 'dog', 'Dog']), 'cat dog');
+});
+
+// --- reranker core (Loop 103) -----------------------------------------------
+test('resolveRerankMode: honest modes, never fakes cross-encoder', () => {
+  assert.equal(rk.resolveRerankMode({ enabled: false, embeddingsAvailable: true, crossEncoderAvailable: false, rerankerModelConfigured: false }).mode, 'disabled');
+  assert.equal(rk.resolveRerankMode({ enabled: true, embeddingsAvailable: true, crossEncoderAvailable: false, rerankerModelConfigured: false }).mode, 'embedding');
+  assert.equal(rk.resolveRerankMode({ enabled: true, embeddingsAvailable: false, crossEncoderAvailable: false, rerankerModelConfigured: true }).mode, 'heuristic');
+  // a configured "reranker model" does NOT become a fake cross-encoder
+  assert.notEqual(rk.resolveRerankMode({ enabled: true, embeddingsAvailable: true, crossEncoderAvailable: false, rerankerModelConfigured: true }).mode, 'cross_encoder');
+});
+test('rerank: embedding mode reorders by vectorScore; heuristic keeps hybrid order; trace preserved', () => {
+  const items = [{ id: 'a', hybridScore: 0.9, vectorScore: 0.1 }, { id: 'b', hybridScore: 0.5, vectorScore: 0.95 }];
+  const emb = rk.rerank(items, 'embedding', 10);
+  assert.equal(emb[0].id, 'b', 'higher vector score floats up under embedding rerank');
+  assert.ok(emb[0].rerankScore !== null && typeof emb[0].hybridScore === 'number');
+  const heur = rk.rerank(items, 'heuristic', 10);
+  assert.equal(heur[0].id, 'a'); assert.equal(heur[0].rerankScore, null);
+});
+
+// --- entailment core (Loop 104) ---------------------------------------------
+test('parseEntailment maps verdicts; UNSUPPORTED is not read as SUPPORTED; junk → null (keep lexical)', () => {
+  assert.equal(en.parseEntailment('SUPPORTED\nThe evidence states it.').support, 'supported');
+  assert.equal(en.parseEntailment('UNSUPPORTED - not mentioned').support, 'unsupported');
+  assert.equal(en.parseEntailment('PARTIAL, some overlap').support, 'partially_supported');
+  assert.equal(en.parseEntailment('NONE — not enough info').support, 'not_enough_evidence');
+  assert.equal(en.parseEntailment('the weather is nice').support, null, 'unparseable → null so caller keeps lexical');
 });

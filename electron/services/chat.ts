@@ -23,6 +23,7 @@ import attachments from './attachments/attachments';
 import visionChat from './vision/visionChat';
 import visionCore from './vision/visionChatCore';
 import verify from './rag/answerVerificationCore';
+import entailment from './rag/entailment';
 
 /** Pending PowerShell/web approvals, keyed by callId, resolved from the UI. */
 const pendingApprovals = new Map<string, (approved: boolean) => void>();
@@ -299,14 +300,29 @@ export async function generate(sender: WebContents, conversationId: string) {
     if (ragChunks.length && full.trim()) {
       try {
         const v = verify.verifyAnswer(full, ragChunks);
+        let mode = 'lexical';
+        // OPTIONAL local-model entailment upgrade (off by default). Evidence is untrusted; on any
+        // failure per claim we keep the conservative lexical label. Missing evidence is never "supported".
+        if (entailment.enabled()) {
+          const allEvidence = ragChunks.map((c) => c.text).join('\n\n');
+          for (const c of v.claims.slice(0, 8)) {
+            const e = await entailment.verifyClaim(c.claim, allEvidence);
+            if (e.support) { c.support = e.support; mode = 'entailment'; }
+          }
+          v.supported = v.claims.filter((c) => c.support === 'supported').length;
+          v.partial = v.claims.filter((c) => c.support === 'partially_supported').length;
+          v.unsupported = v.claims.filter((c) => c.support === 'unsupported').length;
+          v.notEnough = v.claims.filter((c) => c.support === 'not_enough_evidence').length;
+        }
         verification = {
-          summary: verify.summaryLine(v), groundedness: v.groundedness, warning: v.warning, method: v.method,
+          summary: verify.summaryLine(v), groundedness: v.groundedness, warning: v.warning, method: v.method, mode,
           supported: v.supported, partial: v.partial, unsupported: v.unsupported, notEnough: v.notEnough,
           claims: v.claims.map((c) => ({ claim: c.claim.slice(0, 200), support: c.support, source: c.bestChunkName, stale: c.staleSource })),
         };
       } catch { /* verification is best-effort; never block chat */ }
     }
-    sender.send('chat:done', { conversationId, messageId, citations, content: full, verification });
+    const retrievalTrace = (() => { try { return rag.retrievalTrace(); } catch { return undefined; } })();
+    sender.send('chat:done', { conversationId, messageId, citations, content: full, verification, retrieval: retrievalTrace });
     return { ok: true };
   } catch (e: any) {
     if (e.name === 'AbortError') {

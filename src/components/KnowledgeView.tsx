@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { FolderPlus, Trash2, RefreshCw, Pause, Shield } from 'lucide-react';
 import { Button } from '../ui/button';
 import { useBrainStore } from '../state/brainStore';
+import RetrievalPanel from './RetrievalPanel';
 
 function fmt(n: number) {
   if (!n) return '0 B';
@@ -83,6 +84,7 @@ export default function KnowledgeView() {
           {status.embedding.configuredModel ? <span> · model {status.embedding.configuredModel}</span> : null}
         </div>
       ) : null}
+      <RetrievalPanel />
       {status.skipped && Object.keys(status.skipped).length > 0 ? (
         <div className="text-[11px] text-faint mb-3 border border-border/60 rounded-lg p-2 bg-panel/20">
           <span className="text-dim">Skipped for safety</span> (DAWN never indexes secrets/keys/caches):

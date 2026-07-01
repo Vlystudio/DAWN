@@ -193,6 +193,11 @@ export function registerIpc() {
   // --- Local knowledge (RAG) ---
   ipcMain.handle('rag:status', () => rag.status());
   ipcMain.handle('rag:validate', () => rag.validate());
+  // Retrieval quality: last-retrieval trace (safe), reranker status, in-app eval status/run.
+  ipcMain.handle('rag:retrievalTrace', () => rag.retrievalTrace());
+  ipcMain.handle('rag:rerankerStatus', () => require('./services/rag/reranker').default.status());
+  ipcMain.handle('rag:evalStatus', () => require('./services/rag/ragEval').default.status());
+  ipcMain.handle('rag:runEval', () => require('./services/rag/ragEval').default.run());
   ipcMain.handle('rag:pickFolder', async (e) => {
     const win = BrowserWindow.fromWebContents(e.sender);
     const res = await dialog.showOpenDialog(win!, { title: 'Choose a folder to index', properties: ['openDirectory'] });

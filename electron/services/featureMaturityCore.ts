@@ -84,8 +84,10 @@ export interface MaturitySignals {
   // Retrieval quality (hybrid / rewrite / rerank / verification / evals)
   ragRetrievalMode?: string; ragEmbeddedChunks?: number; ragTotalChunks?: number;
   answerVerificationEnabled?: boolean; queryRewriteEnabled?: boolean; hydeEnabled?: boolean;
-  rerankerEnabled?: boolean; rerankerConfigured?: boolean;
+  rerankerEnabled?: boolean; rerankerConfigured?: boolean; rerankMode?: string;
+  entailmentEnabled?: boolean;
   ragEvalLastRunAt?: number; ragEvalCases?: number; ragEvalHitRate?: number | null; ragEvalGroundedness?: number | null;
+  ragEvalFixtureCount?: number; ragEvalNegativesLeaked?: number;
 }
 
 const n = (x?: number) => (typeof x === 'number' && isFinite(x) ? x : 0);
@@ -176,10 +178,12 @@ const EVAL: Record<string, Evaluator> = {
       'Honest mode label per query (hybrid / vector / keyword / unavailable) — real keyword search, no faked scores',
     ];
     const missing: string[] = [];
-    if (yes(s.rerankerEnabled) && yes(s.rerankerConfigured)) works.push('Cross-encoder reranker configured');
-    else missing.push('Reranker: HEURISTIC hybrid ranking (RRF + title boost) — no cross-encoder configured (rerankerModelPath empty). Fallback active, labeled honestly.');
-    if (yes(s.queryRewriteEnabled)) works.push(`Query rewriting ON${yes(s.hydeEnabled) ? ' + HyDE' : ''} (local model)`);
-    else missing.push('Query rewriting/HyDE off (optional; uses the local model when enabled)');
+    const rm = s.rerankMode || 'disabled';
+    if (rm === 'cross_encoder') works.push('Reranker: cross-encoder (local)');
+    else if (rm === 'embedding') works.push('Reranker: embedding-similarity rerank (local, real) — no cross-encoder shipped, never faked');
+    else missing.push('Reranker: heuristic hybrid ranking (RRF + title boost) — enable + embeddings for embedding-similarity rerank; no fake cross-encoder');
+    if (yes(s.queryRewriteEnabled)) works.push(`Query rewriting ON (local model, times out → original)${yes(s.hydeEnabled) ? ' + HyDE vector expansion' : ''}`);
+    else missing.push('Query rewriting/HyDE off (optional; real local-model expansion when enabled, honest fallback)');
     let status: MaturityStatus = 'COMPLETE';
     if (mode === 'unavailable') status = 'BLOCKED_BY_SETUP';
     else if (mode !== 'hybrid') status = 'PARTIAL';
@@ -191,6 +195,7 @@ const EVAL: Record<string, Evaluator> = {
     works: [
       'After a RAG answer, each claim is checked against the retrieved chunks: supported / partially / unsupported / not-enough-evidence',
       'Conservative lexical-overlap groundedness — flags what it cannot verify; NEVER fabricates support',
+      yes(s.entailmentEnabled) ? 'OPTIONAL local-model entailment upgrade ON (falls back to lexical per claim on any failure; missing evidence never becomes supported)' : 'Optional local-model entailment available (off by default; upgrades lexical when enabled)',
       'Retrieved text is data only (never obeyed); the summary carries no chunk text, path, or secret',
     ],
     missing: yes(s.answerVerificationEnabled) ? [] : ['Disabled in settings (answerVerificationEnabled=false)'],
@@ -200,12 +205,12 @@ const EVAL: Record<string, Evaluator> = {
     return {
       status: ran ? 'COMPLETE' : 'PARTIAL',
       works: [
-        'Fixed offline eval set (evals/rag-eval.json) scored by the SHIPPED retrieval + groundedness cores — deterministic regression, no model/network',
+        `Embedded fixture (${n(s.ragEvalFixtureCount)} cases) runnable IN-APP + full dev set via npm run eval:rag — deterministic, offline, no model/network`,
         'Metrics: retrieval hit-rate, top-1, keyword coverage, groundedness, unsupported-rate, negatives-leaked',
-        ran ? `Last run: ${n(s.ragEvalCases)} cases, retrieval hit-rate ${s.ragEvalHitRate}, groundedness ${s.ragEvalGroundedness}` : 'Run with: npm run eval:rag',
+        ran ? `Last run: ${n(s.ragEvalCases)} cases, hit-rate ${s.ragEvalHitRate}, groundedness ${s.ragEvalGroundedness}, negatives leaked ${n(s.ragEvalNegativesLeaked)}` : 'Not run in this install yet',
       ],
-      missing: ran ? [] : ['Not run in this install yet (evals/last-results.json absent) — run npm run eval:rag'],
-      nextAction: ran ? undefined : 'Run npm run eval:rag',
+      missing: ran ? (n(s.ragEvalNegativesLeaked) > 0 ? [`${n(s.ragEvalNegativesLeaked)} negative claim(s) leaked — a real regression`] : []) : ['Not run in this install yet — run it from Local Knowledge or npm run eval:rag'],
+      nextAction: ran ? undefined : 'Run the RAG eval (in-app or npm run eval:rag)',
     };
   },
   research: (s) => ({ status: n(s.researchRuns) > 0 ? 'COMPLETE' : 'PARTIAL', works: ['Plan → search → cited report', 'Untrusted-source firewall', 'Web off by default'], missing: n(s.researchRuns) > 0 ? [] : ['No research runs yet'], nextAction: n(s.researchRuns) > 0 ? undefined : 'Start a research run' }),

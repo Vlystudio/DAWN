@@ -7,6 +7,9 @@ import settings from './settings';
 import logger from './logger';
 import embeddings from './embeddings';
 import hybridCore from './rag/hybridRetrievalCore';
+import rerankerCore from './rag/rerankerCore';
+import reranker from './rag/reranker';
+import queryExpansion from './rag/queryExpansion';
 import parsers from './parsers';
 import safety from './safety';
 import guard from './knowledge/knowledgeGuardCore';
@@ -233,9 +236,16 @@ class Rag extends EventEmitter {
        FROM knowledge_chunks c LEFT JOIN knowledge_sources ks ON ks.id = c.source_id
        WHERE ks.state IS NULL OR ks.state IN ('indexed','stale')`
     );
-    if (!rows.length) return [];
+    if (!rows.length) { this.lastTrace = { retrievalMode: 'unavailable', rewriteMode: 'disabled', hydeMode: 'disabled', rerankMode: 'disabled', variants: [] }; return []; }
+
+    // Local-model retrieval aids (off by default; each degrades honestly to the original query).
+    const rw = await queryExpansion.rewrite(query);
+    const hy = await queryExpansion.hyde(query);
+    const embedText = hy.text ? `${query} ${hy.text}` : query;        // HyDE widens VECTOR recall only
+    const keywordQuery = rw.queries.join(' ');                        // rewrite widens KEYWORD recall
+
     let qv: Float32Array | null = null;
-    try { qv = await embeddings.embed(query); } catch { qv = null; }
+    try { qv = await embeddings.embed(embedText); } catch { qv = null; }
     const byId = new Map<string, any>();
     const cands = rows.map((r) => {
       byId.set(String(r.id), r);
@@ -243,18 +253,39 @@ class Rag extends EventEmitter {
       if (qv && r.embedding) { const v = db.decodeVec(r.embedding); if (v) vectorScore = embeddings.cosine(qv, v); }
       return { id: String(r.id), name: r.name, text: String(r.content || ''), vectorScore, stale: r.src_state === 'stale' };
     });
-    const { mode, results } = hybridCore.hybridRank(cands, query, { topK: k });
-    return results.map((res) => {
+    const embeddingsAvailable = cands.some((c) => typeof c.vectorScore === 'number');
+    const maxCand = Number(s.maxRerankCandidates) > 0 ? Number(s.maxRerankCandidates) : 20;
+
+    // Hybrid retrieval → then an honest rerank stage over the top candidates.
+    const { mode, results } = hybridCore.hybridRank(cands, keywordQuery, { topK: Math.max(k, maxCand) });
+    const scoreById = new Map(results.map((r) => [r.id, r]));
+    const rr = reranker.decide(embeddingsAvailable);
+    const reranked = rerankerCore.rerank(
+      results.map((r) => ({ id: r.id, hybridScore: r.score, vectorScore: r.vectorScore })), rr.mode, maxCand
+    ).slice(0, k);
+
+    this.lastTrace = {
+      retrievalMode: mode, rewriteMode: rw.mode, rewriteVariants: rw.variants, hydeMode: hy.mode,
+      rerankMode: rr.mode, rerankReason: rr.reason,
+    };
+
+    return reranked.map((res) => {
+      const meta = scoreById.get(res.id)!;
       const r = byId.get(res.id) || {};
       return {
         name: r.name, path: r.path, chunkIndex: r.chunk_index, content: r.content,
-        score: res.score, retrievalMode: mode, vectorRank: res.vectorRank, keywordRank: res.keywordRank,
-        keywordScore: res.keywordScore, stale: res.stale,
+        score: Number((res.finalScore ?? meta.score).toFixed(3)), retrievalMode: mode,
+        vectorRank: meta.vectorRank, keywordRank: meta.keywordRank, keywordScore: meta.keywordScore,
+        rerankMode: rr.mode, rerankScore: res.rerankScore, stale: meta.stale,
         // Honest citation: chunk-level (we have a chunk index), file name only, page/section NOT faked.
         citation: citationCore.buildCitation({ name: r.name, path: r.path, sourceType: 'file', chunkIndex: r.chunk_index, retrievalMode: mode }),
       };
     });
   }
+
+  /** Last retrieval trace (safe: modes + variant strings only — no paths/chunk text). For debug UI. */
+  lastTrace: any = null;
+  retrievalTrace() { return this.lastTrace; }
 
   /** Retrieval mode summary for the Local Knowledge UI / debug (no path/secret leak). */
   retrievalInfo() {

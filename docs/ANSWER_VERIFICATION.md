@@ -40,3 +40,11 @@ Overlap-based grounding can mislabel paraphrases (a correct paraphrase with diff
 "partial"). It's a **signal**, not a verdict. A future loop can add an optional local-model entailment
 check for higher precision. Implementation: pure, tested `answerVerificationCore.ts`
 (`tests/retrieval.test.ts`). See also [LOCAL_KNOWLEDGE.md](LOCAL_KNOWLEDGE.md) and [EVALS.md](EVALS.md).
+
+## Lexical vs. local-model entailment (optional)
+
+- **Lexical** (default) — salient-token overlap. Deterministic, conservative, no model.
+- **Local-model entailment** (`entailmentEnabled`, default **off**) — for each claim the **local model**
+  judges whether the evidence supports it (SUPPORTED / PARTIAL / UNSUPPORTED / NONE), per claim with a
+  timeout. On **any** failure it keeps the conservative **lexical** result; it is **never** called with no
+  evidence (so missing evidence is never "supported"). Evidence is untrusted data. Core: `entailmentCore.ts`.
