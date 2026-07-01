@@ -6,6 +6,7 @@ import db from './db';
 import settings from './settings';
 import logger from './logger';
 import embeddings from './embeddings';
+import hybridCore from './rag/hybridRetrievalCore';
 import parsers from './parsers';
 import safety from './safety';
 import guard from './knowledge/knowledgeGuardCore';
@@ -218,26 +219,50 @@ class Rag extends EventEmitter {
     return { checked, stale, removed, skipped };
   }
 
-  /** Retrieve top-K chunks for a query (cosine). */
+  /**
+   * Hybrid retrieval: vector (local embeddings, where present) + real BM25 keyword, fused with
+   * reciprocal-rank fusion. Only searches SAFE sources (skipped/removed excluded; stale allowed but
+   * flagged). Honest mode label (hybrid / vector / keyword / unavailable) — no faked scores.
+   */
   async retrieve(query: string, topK?: number) {
     const s = settings.get();
     const k = topK || s.ragTopK || 5;
-    const qv = await embeddings.embed(query);
-    const rows = db.all<any>('SELECT path, name, chunk_index, content, embedding FROM knowledge_chunks');
-    const scored: { r: any; score: number }[] = [];
-    for (const r of rows) {
-      const v = db.decodeVec(r.embedding);
-      if (!v) continue;
-      const score = embeddings.cosine(qv, v);
-      if (score >= (s.ragMinScore || 0)) scored.push({ r, score });
-    }
-    scored.sort((a, b) => b.score - a.score);
-    const mode = (() => { try { return db.get<{ c: number }>('SELECT COUNT(*) c FROM knowledge_chunks WHERE embedding IS NOT NULL')!.c > 0 ? 'embeddings' : 'keyword fallback'; } catch { return 'keyword fallback'; } })();
-    return scored.slice(0, k).map(({ r, score }) => ({
-      name: r.name, path: r.path, chunkIndex: r.chunk_index, content: r.content, score: Number(score.toFixed(3)),
-      // Honest citation: chunk-level (we have a chunk index), file name only, page/section NOT faked.
-      citation: citationCore.buildCitation({ name: r.name, path: r.path, sourceType: 'file', chunkIndex: r.chunk_index, retrievalMode: mode }),
-    }));
+    // Candidate chunks from safe sources only. Skipped/removed are excluded; stale is kept + flagged.
+    const rows = db.all<any>(
+      `SELECT c.id, c.path, c.name, c.chunk_index, c.content, c.embedding, ks.state AS src_state
+       FROM knowledge_chunks c LEFT JOIN knowledge_sources ks ON ks.id = c.source_id
+       WHERE ks.state IS NULL OR ks.state IN ('indexed','stale')`
+    );
+    if (!rows.length) return [];
+    let qv: Float32Array | null = null;
+    try { qv = await embeddings.embed(query); } catch { qv = null; }
+    const byId = new Map<string, any>();
+    const cands = rows.map((r) => {
+      byId.set(String(r.id), r);
+      let vectorScore: number | null = null;
+      if (qv && r.embedding) { const v = db.decodeVec(r.embedding); if (v) vectorScore = embeddings.cosine(qv, v); }
+      return { id: String(r.id), name: r.name, text: String(r.content || ''), vectorScore, stale: r.src_state === 'stale' };
+    });
+    const { mode, results } = hybridCore.hybridRank(cands, query, { topK: k });
+    return results.map((res) => {
+      const r = byId.get(res.id) || {};
+      return {
+        name: r.name, path: r.path, chunkIndex: r.chunk_index, content: r.content,
+        score: res.score, retrievalMode: mode, vectorRank: res.vectorRank, keywordRank: res.keywordRank,
+        keywordScore: res.keywordScore, stale: res.stale,
+        // Honest citation: chunk-level (we have a chunk index), file name only, page/section NOT faked.
+        citation: citationCore.buildCitation({ name: r.name, path: r.path, sourceType: 'file', chunkIndex: r.chunk_index, retrievalMode: mode }),
+      };
+    });
+  }
+
+  /** Retrieval mode summary for the Local Knowledge UI / debug (no path/secret leak). */
+  retrievalInfo() {
+    let total = 0, embedded = 0;
+    try { total = db.get<{ c: number }>('SELECT COUNT(*) c FROM knowledge_chunks')!.c; } catch { /* */ }
+    try { embedded = db.get<{ c: number }>('SELECT COUNT(*) c FROM knowledge_chunks WHERE embedding IS NOT NULL')!.c; } catch { /* */ }
+    const mode = total === 0 ? 'unavailable' : embedded > 0 ? 'hybrid' : 'keyword';
+    return { mode, totalChunks: total, embeddedChunks: embedded, reason: hybridCore.modeReason(mode as any, embedded, total) };
   }
 
   status() {

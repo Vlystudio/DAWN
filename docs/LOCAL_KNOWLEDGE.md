@@ -95,3 +95,40 @@ what was stored at index time (`knowledgeStaleCore`). Verdicts are honest — fi
 no stored metadata → left as-is (never fabricated). The safety guard runs first, so an
 unsafe file is never read just to check staleness. Stale sources stay usable in search/workspace
 until you re-index; **removed** sources drop out. System Health reports stale/failed counts.
+
+## Hybrid retrieval (vector + keyword)
+
+DAWN's retrieval is **hybrid**: it combines **vector** search (cosine over local `nomic-embed-text`
+embeddings, where present) with a real **BM25 keyword** signal over the candidate chunk text, and fuses
+them with **reciprocal-rank fusion**. It reports its mode honestly per query:
+
+- **Hybrid** — both signals available (best).
+- **Vector only** — embeddings present but no keyword match for this query.
+- **Keyword only (BM25)** — no embeddings yet (e.g. indexed without an embedding model), or no vector
+  match. This is a *real* keyword search now, not a silent skip.
+- **Unavailable** — nothing indexed.
+
+Retrieval only searches **safe** sources: skipped/removed sources are excluded; **stale** sources are
+still searchable but **flagged** so citations/verification can label them. An exact title/name token
+match gets a small boost; stale chunks get a small penalty. Scores are normalized `[0,1]` — never faked.
+Implementation: pure `rag/hybridRetrievalCore.ts` (BM25 + RRF + fusion), tested in
+`tests/retrieval.test.ts`. System Health → **Hybrid Retrieval** shows the active mode + fallback reason.
+
+### Reranker (honest status)
+
+A cross-encoder **reranker** is optional (`rerankerEnabled` / `rerankerModelPath`). When none is
+configured — the default — DAWN uses the **heuristic hybrid ranking** (RRF + title boost) and labels it
+as such; it never claims cross-encoder reranking it isn't doing. The Model Cookbook tracks a `reranker`
+role for when a local reranker is added.
+
+### Query rewriting / HyDE (optional)
+
+`queryRewriteEnabled` / `hydeEnabled` (default **off**) will expand/rewrite the query with the **local
+model** before searching, to improve recall. It uses only the local model, treats its output as an
+internal retrieval aid (never the final answer, never memory), and **degrades honestly** (skips) when
+the model is unavailable or times out (`rewriteTimeoutMs`).
+
+### Answer grounding
+
+RAG answers are checked against the retrieved chunks — see [ANSWER_VERIFICATION.md](ANSWER_VERIFICATION.md).
+Measure retrieval + grounding quality with the eval harness — see [EVALS.md](EVALS.md).

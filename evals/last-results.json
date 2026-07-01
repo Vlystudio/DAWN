@@ -1,0 +1,60 @@
+{
+  "summary": {
+    "cases": 4,
+    "valid": 4,
+    "invalid": 0,
+    "retrievalHitRate": 1,
+    "top1HitRate": 1,
+    "meanKeywordCoverage": 1,
+    "meanGroundedness": 0.569,
+    "meanUnsupportedRate": 0.25,
+    "negativesLeaked": 0,
+    "ranAt": 1782879027718
+  },
+  "scores": [
+    {
+      "id": "beekeeping-varroa",
+      "valid": true,
+      "retrievalHit": true,
+      "topKHit": true,
+      "mode": "keyword",
+      "keywordCoverage": 1,
+      "groundedness": 0.857,
+      "unsupportedRate": 0,
+      "negativesLeaked": 0
+    },
+    {
+      "id": "electron-ipc",
+      "valid": true,
+      "retrievalHit": true,
+      "topKHit": true,
+      "mode": "keyword",
+      "keywordCoverage": 1,
+      "groundedness": 0.75,
+      "unsupportedRate": 0,
+      "negativesLeaked": 0
+    },
+    {
+      "id": "compost-ratio",
+      "valid": true,
+      "retrievalHit": true,
+      "topKHit": true,
+      "mode": "keyword",
+      "keywordCoverage": 1,
+      "groundedness": 0.667,
+      "unsupportedRate": 0,
+      "negativesLeaked": 0
+    },
+    {
+      "id": "no-evidence",
+      "valid": true,
+      "retrievalHit": null,
+      "topKHit": null,
+      "mode": "unavailable",
+      "keywordCoverage": 1,
+      "groundedness": 0,
+      "unsupportedRate": 1,
+      "negativesLeaked": null
+    }
+  ]
+}

@@ -81,6 +81,11 @@ export interface MaturitySignals {
   visionChatReady?: boolean; visionChatMode?: string; visionChatReason?: string; visionChatNextAction?: string;
   visionModelConfigured?: boolean; visionCliPresent?: boolean; chatImages?: number;
   visionMmprojConfigured?: boolean; visionSetupState?: string;
+  // Retrieval quality (hybrid / rewrite / rerank / verification / evals)
+  ragRetrievalMode?: string; ragEmbeddedChunks?: number; ragTotalChunks?: number;
+  answerVerificationEnabled?: boolean; queryRewriteEnabled?: boolean; hydeEnabled?: boolean;
+  rerankerEnabled?: boolean; rerankerConfigured?: boolean;
+  ragEvalLastRunAt?: number; ragEvalCases?: number; ragEvalHitRate?: number | null; ragEvalGroundedness?: number | null;
 }
 
 const n = (x?: number) => (typeof x === 'number' && isFinite(x) ? x : 0);
@@ -100,6 +105,9 @@ export const FEATURE_AREAS: FeatureArea[] = [
   { id: 'memory', name: 'Memory', group: 'Knowledge', route: 'memory', summary: 'Durable, confirmed memories recalled in chat.' },
   { id: 'knowledge', name: 'Local Knowledge / RAG', group: 'Knowledge', route: 'localknowledge', settingsRoute: 'settings', docs: 'LOCAL_KNOWLEDGE.md', summary: 'Index folders you approve; cited retrieval.' },
   { id: 'knowledge_safety', name: 'Knowledge Safety', group: 'Knowledge', route: 'localknowledge', docs: 'LOCAL_KNOWLEDGE.md', summary: 'Protected-path skipping with reasons; no secrets indexed.' },
+  { id: 'hybrid_retrieval', name: 'Hybrid Retrieval', group: 'Knowledge', route: 'localknowledge', docs: 'LOCAL_KNOWLEDGE.md', summary: 'Vector + BM25 keyword fusion with honest fallback + rerank/rewrite status.' },
+  { id: 'answer_verification', name: 'Answer Verification', group: 'Knowledge', route: 'localknowledge', docs: 'ANSWER_VERIFICATION.md', summary: 'Groundedness check of RAG answers (no faked support).' },
+  { id: 'rag_eval', name: 'RAG Eval Harness', group: 'Knowledge', route: 'localknowledge', docs: 'EVALS.md', summary: 'Local retrieval + grounding metrics over a fixed set.' },
   { id: 'research', name: 'Deep Research', group: 'Core', route: 'research', docs: 'RESEARCH.md', summary: 'Plan → search → cite → report.' },
   { id: 'compare', name: 'Model Compare / Arena', group: 'Models', route: 'compare', docs: 'COMPARE.md', summary: 'Head-to-head model comparison + judge.' },
   { id: 'documents', name: 'Documents', group: 'Workspace', route: 'documents', docs: 'WORKSPACE.md', summary: 'Markdown docs + AI actions + versions.' },
@@ -161,6 +169,45 @@ const EVAL: Record<string, Evaluator> = {
     ? { status: n(s.knowledgeChunks) > 0 ? 'COMPLETE' : 'PARTIAL', works: ['Folder indexing with lifecycle state (indexed/stale/failed/removed)', 'Per-file stale/removed detection (Check for changes)', 'Cited retrieval with honest precision', s.embeddingsAvailable ? 'Embeddings' : 'Keyword fallback', 'Protected-path skipping with reasons'], missing: [...(n(s.knowledgeChunks) > 0 ? (s.embeddingsAvailable ? [] : ['Embedding model (using keyword fallback)']) : ['Index has no chunks yet']), ...(n(s.knowledgeFailed) > 0 ? [`${n(s.knowledgeFailed)} source(s) failed to index`] : []), ...(n(s.knowledgeStale) > 0 ? [`${n(s.knowledgeStale)} stale source(s) — re-index to refresh`] : []), 'Page/section citation precision depends on parser support (honestly "not available" otherwise)'], nextAction: n(s.knowledgeStale) > 0 ? 'Re-index to refresh stale sources' : (n(s.knowledgeChunks) > 0 ? undefined : 'Re-index your folders') }
     : { status: 'BLOCKED_BY_SETUP', works: ['Indexer + retrieval pipeline', 'Protected-path skipping (with reasons)', 'Sources auto-register in the Workspace Graph'], missing: ['No folders indexed'], requiredSetup: 'Add an opt-in folder in Local Knowledge.', nextAction: 'Open Local Knowledge' },
   knowledge_safety: () => ({ status: 'COMPLETE', works: ['Never indexes .env/keys/credentials/vault/auth/browser-profiles/password-managers/node_modules/.git', 'Skips with a plain-language reason (shown in status)', '5 MB file-size limit; unsupported types skipped', 'No whole-disk scan — folders are opt-in'], missing: [] }),
+  hybrid_retrieval: (s) => {
+    const mode = s.ragRetrievalMode || 'unavailable';
+    const works = [
+      'Vector (local embeddings) + BM25 keyword, fused with reciprocal-rank fusion; deduped; skipped/removed sources excluded; stale kept + flagged',
+      'Honest mode label per query (hybrid / vector / keyword / unavailable) — real keyword search, no faked scores',
+    ];
+    const missing: string[] = [];
+    if (yes(s.rerankerEnabled) && yes(s.rerankerConfigured)) works.push('Cross-encoder reranker configured');
+    else missing.push('Reranker: HEURISTIC hybrid ranking (RRF + title boost) — no cross-encoder configured (rerankerModelPath empty). Fallback active, labeled honestly.');
+    if (yes(s.queryRewriteEnabled)) works.push(`Query rewriting ON${yes(s.hydeEnabled) ? ' + HyDE' : ''} (local model)`);
+    else missing.push('Query rewriting/HyDE off (optional; uses the local model when enabled)');
+    let status: MaturityStatus = 'COMPLETE';
+    if (mode === 'unavailable') status = 'BLOCKED_BY_SETUP';
+    else if (mode !== 'hybrid') status = 'PARTIAL';
+    return { status, works, missing, requiredSetup: mode === 'unavailable' ? 'Index a folder in Local Knowledge.' : undefined,
+      nextAction: mode === 'hybrid' ? undefined : (n(s.ragEmbeddedChunks) > 0 ? undefined : 'Index with an embedding model for hybrid (keyword works now)') };
+  },
+  answer_verification: (s) => ({
+    status: yes(s.answerVerificationEnabled) ? 'COMPLETE' : 'PARTIAL',
+    works: [
+      'After a RAG answer, each claim is checked against the retrieved chunks: supported / partially / unsupported / not-enough-evidence',
+      'Conservative lexical-overlap groundedness — flags what it cannot verify; NEVER fabricates support',
+      'Retrieved text is data only (never obeyed); the summary carries no chunk text, path, or secret',
+    ],
+    missing: yes(s.answerVerificationEnabled) ? [] : ['Disabled in settings (answerVerificationEnabled=false)'],
+  }),
+  rag_eval: (s) => {
+    const ran = n(s.ragEvalLastRunAt) > 0;
+    return {
+      status: ran ? 'COMPLETE' : 'PARTIAL',
+      works: [
+        'Fixed offline eval set (evals/rag-eval.json) scored by the SHIPPED retrieval + groundedness cores — deterministic regression, no model/network',
+        'Metrics: retrieval hit-rate, top-1, keyword coverage, groundedness, unsupported-rate, negatives-leaked',
+        ran ? `Last run: ${n(s.ragEvalCases)} cases, retrieval hit-rate ${s.ragEvalHitRate}, groundedness ${s.ragEvalGroundedness}` : 'Run with: npm run eval:rag',
+      ],
+      missing: ran ? [] : ['Not run in this install yet (evals/last-results.json absent) — run npm run eval:rag'],
+      nextAction: ran ? undefined : 'Run npm run eval:rag',
+    };
+  },
   research: (s) => ({ status: n(s.researchRuns) > 0 ? 'COMPLETE' : 'PARTIAL', works: ['Plan → search → cited report', 'Untrusted-source firewall', 'Web off by default'], missing: n(s.researchRuns) > 0 ? [] : ['No research runs yet'], nextAction: n(s.researchRuns) > 0 ? undefined : 'Start a research run' }),
   compare: (s) => ({ status: 'COMPLETE', works: ['2–4 model compare', 'Blind mode + AI judge'], missing: n(s.modelCount) >= 2 ? [] : ['Needs ≥2 installed models'], nextAction: n(s.modelCount) >= 2 ? undefined : 'Install another model' }),
   documents: (s) => ({ status: n(s.documents) > 0 ? 'COMPLETE' : 'PARTIAL', works: ['Create/edit + versions', 'AI summarize/rewrite/extract tasks'], missing: n(s.documents) > 0 ? [] : ['No documents yet'], nextAction: n(s.documents) > 0 ? undefined : 'Create a document' }),

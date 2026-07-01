@@ -84,3 +84,10 @@ a VLM + `mmproj` pair from your model folder (scan is folder-scoped, never the w
 without confirmation), or pick each file manually. It shows a granular, honest status (not configured →
 missing pieces → **Ready**) and a **Test Vision Model** button that runs the real `llama-mtmd-cli` on a
 tiny image. File paths never leave the main process (only file names are shown). See [VISION_CHAT.md](VISION_CHAT.md).
+
+### Reranker role (retrieval)
+
+The Model Cookbook tracks a `reranker` role for an optional local cross-encoder that reorders retrieved
+chunks. Until one is configured (`rerankerModelPath`), DAWN uses honest **heuristic hybrid ranking**
+(reciprocal-rank fusion + title boost) and never claims cross-encoder reranking. See
+[LOCAL_KNOWLEDGE.md](LOCAL_KNOWLEDGE.md).

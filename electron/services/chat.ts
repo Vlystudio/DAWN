@@ -22,6 +22,7 @@ import security from './security/promptSecurity';
 import attachments from './attachments/attachments';
 import visionChat from './vision/visionChat';
 import visionCore from './vision/visionChatCore';
+import verify from './rag/answerVerificationCore';
 
 /** Pending PowerShell/web approvals, keyed by callId, resolved from the UI. */
 const pendingApprovals = new Map<string, (approved: boolean) => void>();
@@ -120,6 +121,7 @@ export async function generate(sender: WebContents, conversationId: string) {
   // system prompt. See electron/services/security/promptSecurity.ts.
   const untrustedParts: string[] = [];
   let citations: any[] = [];
+  let ragChunks: { id: string; name?: string; text: string; stale?: boolean }[] = []; // for answer verification
 
   // Ground the model in the real current date/time (its training data is stale,
   // so without this it guesses — e.g. answering "today" with a year-old date).
@@ -185,6 +187,7 @@ export async function generate(sender: WebContents, conversationId: string) {
     try {
       const chunks = await rag.retrieve(lastUser.content);
       if (chunks.length) {
+        ragChunks = chunks.map((c: any, i: number) => ({ id: `rag${i}`, name: c.name, text: String(c.content || ''), stale: !!c.stale }));
         const base = citations.length;
         citations = citations.concat(chunks.map((c, i) => ({ n: base + i + 1, type: 'file', name: c.name, path: c.path, score: c.score })));
         const ctx = chunks.map((c, i) => `[${base + i + 1}] ${c.name}\n${c.content}`).join('\n\n');
@@ -290,7 +293,20 @@ export async function generate(sender: WebContents, conversationId: string) {
         /* never block chat on vault errors */
       }
     }
-    sender.send('chat:done', { conversationId, messageId, citations, content: full });
+    // Answer verification (groundedness) — only when local knowledge was actually retrieved. Safe
+    // summary only (counts + names + warning); no chunk text or paths leave here.
+    let verification: any = undefined;
+    if (ragChunks.length && full.trim()) {
+      try {
+        const v = verify.verifyAnswer(full, ragChunks);
+        verification = {
+          summary: verify.summaryLine(v), groundedness: v.groundedness, warning: v.warning, method: v.method,
+          supported: v.supported, partial: v.partial, unsupported: v.unsupported, notEnough: v.notEnough,
+          claims: v.claims.map((c) => ({ claim: c.claim.slice(0, 200), support: c.support, source: c.bestChunkName, stale: c.staleSource })),
+        };
+      } catch { /* verification is best-effort; never block chat */ }
+    }
+    sender.send('chat:done', { conversationId, messageId, citations, content: full, verification });
     return { ok: true };
   } catch (e: any) {
     if (e.name === 'AbortError') {

@@ -44,6 +44,9 @@
     "electron/services/calendar/calCore.ts",
     "electron/services/attachments/attachmentsCore.ts",
     "electron/services/vision/visionChatCore.ts",
+    "electron/services/rag/hybridRetrievalCore.ts",
+    "electron/services/rag/answerVerificationCore.ts",
+    "electron/services/rag/ragEvalCore.ts",
     "tests/agentos.test.ts",
     "tests/agentosRuntime.test.ts",
     "tests/install.test.ts",
@@ -82,6 +85,7 @@
     "tests/statusMap.test.ts",
     "tests/shellLayout.test.ts",
     "tests/uiMigration.test.ts",
-    "tests/attachments.test.ts"
+    "tests/attachments.test.ts",
+    "tests/retrieval.test.ts"
   ]
 }

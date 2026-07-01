@@ -1,0 +1,55 @@
+{
+  "name": "DAWN local RAG eval — fixed regression set",
+  "note": "Deterministic, offline. Exercises the hybrid retrieval + groundedness cores over a synthetic corpus. No model, no live index, no network. Add cases over time to catch retrieval-quality regressions.",
+  "cases": [
+    {
+      "id": "beekeeping-varroa",
+      "question": "How do I treat varroa mites in my beehive?",
+      "corpus": [
+        { "id": "hive-health", "name": "hive-health.md", "text": "Varroa mites are the biggest threat to a honey bee colony. Treat them with oxalic acid vaporization in late fall when the colony is broodless, or use formic acid strips during the season." },
+        { "id": "honey-harvest", "name": "honey-harvest.md", "text": "Harvest honey when frames are capped. Use an extractor, then filter and bottle. Leave enough honey for the bees to overwinter." },
+        { "id": "queen-rearing", "name": "queen-rearing.md", "text": "To rear a new queen, graft young larvae into cell cups and place them in a queenless starter colony." }
+      ],
+      "expectedSourceIds": ["hive-health"],
+      "expectedKeywords": ["oxalic", "acid"],
+      "answer": "Treat varroa mites with oxalic acid vaporization in late fall when the colony is broodless. Formic acid strips also work during the season.",
+      "negativeClaims": ["Varroa mites are cured by playing loud music near the hive."]
+    },
+    {
+      "id": "electron-ipc",
+      "question": "How does the renderer talk to the main process in DAWN?",
+      "corpus": [
+        { "id": "ipc-doc", "name": "ipc.md", "text": "In DAWN the renderer reaches the main process only through the preload contextBridge, which exposes window.dawn. Every call is an ipcRenderer.invoke to an ipcMain.handle channel." },
+        { "id": "brain-doc", "name": "brain.md", "text": "The 3D brain visualizes workspace items as nodes and links as edges, rebuilt on demand." },
+        { "id": "vault-doc", "name": "vault.md", "text": "The vault stores encrypted secrets and is never searched or represented in the workspace graph." }
+      ],
+      "expectedSourceIds": ["ipc-doc"],
+      "expectedKeywords": ["preload", "contextbridge"],
+      "answer": "The renderer talks to the main process through the preload contextBridge exposed as window.dawn, using ipcRenderer.invoke to ipcMain.handle channels.",
+      "negativeClaims": ["Bananas are an excellent source of dietary potassium."]
+    },
+    {
+      "id": "compost-ratio",
+      "question": "What is the right carbon to nitrogen ratio for compost?",
+      "corpus": [
+        { "id": "compost", "name": "compost.md", "text": "A healthy compost pile wants a carbon to nitrogen ratio of about 30 to 1. Browns like dry leaves are carbon; greens like food scraps are nitrogen." },
+        { "id": "watering", "name": "watering.md", "text": "Most vegetables need about an inch of water per week, more in hot weather." }
+      ],
+      "expectedSourceIds": ["compost"],
+      "expectedKeywords": ["carbon", "nitrogen"],
+      "answer": "Aim for a carbon to nitrogen ratio around 30 to 1 — dry browns provide carbon and green food scraps provide nitrogen.",
+      "negativeClaims": ["Penguins migrate across the Sahara desert every spring."]
+    },
+    {
+      "id": "no-evidence",
+      "question": "What is the capital of France?",
+      "corpus": [
+        { "id": "compost2", "name": "compost.md", "text": "A healthy compost pile wants a carbon to nitrogen ratio of about 30 to 1." },
+        { "id": "watering2", "name": "watering.md", "text": "Most vegetables need about an inch of water per week." }
+      ],
+      "expectedKeywords": ["paris"],
+      "answer": "The capital of France is Paris.",
+      "notes": "Grounding SHOULD be low here — the local corpus has no supporting evidence, so DAWN should flag the answer as not grounded."
+    }
+  ]
+}

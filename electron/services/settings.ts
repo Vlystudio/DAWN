@@ -70,6 +70,17 @@ export interface Settings {
   ragTopK: number;
   ragMinScore: number;
   chunkSize: number;
+  // --- Retrieval quality (hybrid + rewrite + rerank + verification) ---
+  hybridRetrievalEnabled: boolean;   // vector + BM25 keyword fusion (default on)
+  answerVerificationEnabled: boolean; // groundedness check of RAG answers (default on)
+  queryRewriteEnabled: boolean;       // local-model query rewriting (default off)
+  hydeEnabled: boolean;               // HyDE-style expansion (default off)
+  maxRewriteQueries: number;
+  rewriteTimeoutMs: number;
+  rerankerEnabled: boolean;           // cross-encoder rerank if configured (default off)
+  rerankerModelPath: string;
+  maxRerankCandidates: number;
+  rerankTimeoutMs: number;
   chunkOverlap: number;
 
   // --- Voice (local TTS) ---
@@ -250,6 +261,16 @@ export const DEFAULTS: Settings = {
   indexedFolders: [],
   ragTopK: 5,
   ragMinScore: 0.05,
+  hybridRetrievalEnabled: true,
+  answerVerificationEnabled: true,
+  queryRewriteEnabled: false,
+  hydeEnabled: false,
+  maxRewriteQueries: 2,
+  rewriteTimeoutMs: 8000,
+  rerankerEnabled: false,
+  rerankerModelPath: '',
+  maxRerankCandidates: 20,
+  rerankTimeoutMs: 8000,
   chunkSize: 1200,
   chunkOverlap: 200,
 
