@@ -94,3 +94,9 @@ The `vision` role (see `modelCookbookCore` ROLES) marks a vision-capable model u
 (image attachments). A vision model needs both a VLM GGUF and its `mmproj` projector; the Model Cookbook
 surfaces the best installed vision model, and System Health → **Vision Chat** reports whether image chat
 is ready or what setup is missing. See [VISION_CHAT.md](VISION_CHAT.md).
+
+### Vision role setup
+
+The `vision` role is configured from **Model Cookbook → Vision Chat model** (auto-detect or manual pick
+of a VLM GGUF + its `mmproj`, then validate + on-device test). System Health → **Vision Chat** reports the
+granular setup state (runtime present, model set, mmproj set, ready). See [VISION_CHAT.md](VISION_CHAT.md).

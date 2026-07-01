@@ -19,6 +19,13 @@ export interface ReconcileResult {
 export function reconcile(): ReconcileResult {
   let registered = 0; let pruned = 0; const byFeature: Record<string, any> = {}; const errors: string[] = [];
 
+  // Precompute which conversations carry image attachments (SAFE counts only — no path/content).
+  let convImages: Record<string, number> = {};
+  try {
+    const rows = db.all<{ conversation_id: string; c: number }>("SELECT conversation_id, COUNT(*) c FROM chat_attachments WHERE kind='image' AND message_id IS NOT NULL AND message_id!='' GROUP BY conversation_id");
+    for (const r of rows) convImages[String(r.conversation_id)] = Number(r.c) || 0;
+  } catch { convImages = {}; }
+
   for (const def of ADAPTER_DEFS) {
     let rows: any[] = [];
     try { rows = db.all(`SELECT * FROM ${def.table}${def.extraWhere ? ' WHERE ' + def.extraWhere : ''}`); }
@@ -30,8 +37,12 @@ export function reconcile(): ReconcileResult {
       const mapped = core.mapRowToItem(def, row);
       if (!mapped) continue;
       validRefs.add(mapped.refId);
+      // Chat conversations that hold image attachments get safe image flags in their metadata.
+      const metadata = (def.feature === 'chat' && convImages[mapped.refId])
+        ? core.withImageMeta(mapped.metadata, convImages[mapped.refId])
+        : mapped.metadata;
       try {
-        const r: any = items.create({ type: mapped.type, refId: mapped.refId, label: mapped.label, sourceFeature: mapped.sourceFeature, metadata: mapped.metadata });
+        const r: any = items.create({ type: mapped.type, refId: mapped.refId, label: mapped.label, sourceFeature: mapped.sourceFeature, metadata });
         if (r?.ok) count++;
       } catch (e: any) { errors.push(`${def.feature}: ${String(e?.message || e).slice(0, 80)}`); }
     }

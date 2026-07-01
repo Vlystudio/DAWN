@@ -80,6 +80,7 @@ export interface MaturitySignals {
   // Vision Chat / image attachments (honest capability probe + storage/DB presence)
   visionChatReady?: boolean; visionChatMode?: string; visionChatReason?: string; visionChatNextAction?: string;
   visionModelConfigured?: boolean; visionCliPresent?: boolean; chatImages?: number;
+  visionMmprojConfigured?: boolean; visionSetupState?: string;
 }
 
 const n = (x?: number) => (typeof x === 'number' && isFinite(x) ? x : 0);
@@ -195,6 +196,7 @@ const EVAL: Record<string, Evaluator> = {
       'Attachments persist in SQLite, associate with the message, show a thumbnail + open a larger preview',
       'Only safe metadata (name/mime/size/dims) is exposed — never the file path, bytes, EXIF, or OCR text; image content never enters diagnostics or search',
       'Image text (OCR/vision) is treated as UNTRUSTED evidence (wrapped + inspected), never as instructions',
+      `Setup (Model Cookbook): multimodal runtime ${yes(s.visionCliPresent) ? 'present ✓' : 'MISSING'}; VLM model ${yes(s.visionModelConfigured) ? 'set' : 'not set'}; mmproj ${yes(s.visionMmprojConfigured) ? 'set' : 'not set'} — pick files or auto-detect + validate + test on-device`,
     ];
     if (yes(s.visionChatReady) && s.visionChatMode === 'vlm') {
       return { status: 'COMPLETE', works: [...works, 'A vision-capable local model is configured — attached images are actually analyzed on-device'], missing: [] };

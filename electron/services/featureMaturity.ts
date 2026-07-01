@@ -45,7 +45,8 @@ export function gatherSignals(): MaturitySignals {
 
   // Vision Chat: honest capability probe (no model paths leak — only booleans/reason).
   let visionChatReady = false, visionChatMode = 'none', visionChatReason = '', visionChatNextAction = '', visionModelConfigured = false, visionCliPresent = false;
-  try { const vc = require('./vision/visionChat').default; const c = vc.capabilities ? vc.capabilities() : null; if (c) { visionChatReady = !!c.ready; visionChatMode = c.mode || 'none'; visionChatReason = c.reason || ''; visionChatNextAction = c.nextAction || ''; visionModelConfigured = !!c.modelConfigured; visionCliPresent = !!c.cliPresent; } } catch { /* */ }
+  let visionMmprojConfigured = false, visionSetupState = 'not_configured';
+  try { const vc = require('./vision/visionChat').default; const c = vc.capabilities ? vc.capabilities() : null; if (c) { visionChatReady = !!c.ready; visionChatMode = c.mode || 'none'; visionChatReason = c.reason || ''; visionChatNextAction = c.nextAction || ''; visionModelConfigured = !!c.modelConfigured; visionCliPresent = !!c.cliPresent; } const v = vc.validate ? vc.validate() : null; if (v) { visionMmprojConfigured = !!v.mmprojConfigured; visionSetupState = v.state || 'not_configured'; } } catch { /* */ }
 
   const now = Date.now();
   return {
@@ -93,6 +94,7 @@ export function gatherSignals(): MaturitySignals {
     globalSearch: true,      // Ctrl/Cmd+Shift+F overlay (src/components/GlobalSearch.tsx)
     indexedFolders: tryNum(() => Array.isArray(s.indexedFolders) ? s.indexedFolders.length : 0),
     visionChatReady, visionChatMode, visionChatReason, visionChatNextAction, visionModelConfigured, visionCliPresent,
+    visionMmprojConfigured, visionSetupState,
     chatImages: tryNum(() => count('chat_attachments', "kind='image'")),
   };
 }

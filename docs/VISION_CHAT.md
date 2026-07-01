@@ -37,12 +37,23 @@ thumbnail to open a larger preview. You can send an image with or without text.
 4. The chat history shows the image thumbnail + an analysis status (attached / analyzing / analyzed /
    failed / vision unavailable).
 
-## What model is needed
+## What model is needed & how to set it up
 
 Full image understanding needs a **vision-capable GGUF model + its `mmproj` projector**, e.g.
-**Qwen2.5-VL**, **LLaVA**, or **MiniCPM-V**. Install both files in the **Model Hub**, then set the model
-paths (`vlmModelPath`, `vlmMmprojPath`) / the **Vision** role. The bundled `llama-mtmd-cli` runtime is
-already present. `vision:capabilities` reports, honestly, whether image chat is ready.
+**Qwen2.5-VL**, **LLaVA**, or **MiniCPM-V**. The bundled `llama-mtmd-cli` runtime is already present.
+
+**Set it up in Model Cookbook → "Vision Chat model":**
+1. **Auto-detect** — scans *only* DAWN's model folder (not your disk) for a likely VLM + `mmproj` pair,
+   ranks candidates by confidence, and marks a single high-confidence pair "recommended". Nothing is
+   applied until you click **Use pair** and confirm — DAWN re-validates the files first.
+2. **Or pick manually** — choose the model `.gguf` and its `mmproj` `.gguf` with the file pickers.
+3. The panel shows a granular, honest status: *Not configured · Model selected, mmproj missing · mmproj
+   selected, model missing · File missing · Invalid (not .gguf) · Runtime missing · **Ready***.
+4. **Test Vision Model** — runs the real `llama-mtmd-cli` on a tiny test image and shows the actual
+   (sanitized) result, so you can verify on-device analysis works before relying on it.
+
+Full paths never leave the main process — the panel only ever shows file **names**. `vision:capabilities`
+and System Health → **Vision Chat** report, honestly, whether image chat is ready or what's missing.
 
 If the **currently loaded chat model is text-only**, that's fine — DAWN uses the configured vision model
 as a separate on-device analyzer and feeds the result to your chat model.
@@ -87,3 +98,42 @@ clearly labelled "I used OCR text fallback," and the text is treated as untruste
   `maxImageDimensionPx` in settings if you really need larger.
 - **Corrupt image** — DAWN rejects it with a message rather than crashing; re-export the screenshot.
 - **OCR unavailable** — expected today for chat uploads (see OCR fallback above).
+
+## Auto-detect didn't find my vision model?
+
+Auto-detect only scans **DAWN's model folder** (`%APPDATA%/DAWN/models` and its subfolders, depth-limited)
+— never your whole disk. It pairs a file whose name looks like a vision model (`llava`, `-vl-`, `qwen…vl`,
+`minicpm-v`, `moondream`, `pixtral`, `vision`) with a file whose name contains `mmproj`. If it finds
+nothing: make sure **both** the VLM `.gguf` and its `mmproj` `.gguf` are in the model folder (Model Hub →
+import), then re-scan. If the names don't share tokens or sit in different folders, use the manual
+pickers instead — DAWN will still validate the pair before enabling vision.
+
+## Visual verification checklist (Vision Chat)
+
+Run this on the installed build; mark each ✅/❌:
+
+1. Paste a screenshot into chat → thumbnail appears.
+2. Remove the thumbnail (×) works.
+3. Upload an image via the paperclip.
+4. Drag & drop an image onto the composer.
+5. An oversized/unsupported/corrupt file shows a clear, plain-English error.
+6. Send a message with an image → it appears as a card on the sent message.
+7. Click the thumbnail → larger preview modal opens.
+8. Text-only chat still works normally.
+9. **No VLM configured:** DAWN says it can't see the image and points to setup (never guesses).
+10. Model Cookbook → Vision Chat model → **Auto-detect** scans the model folder and lists candidates
+    (or an honest empty state).
+11. Pick model + mmproj (or Use pair) → status shows the correct granular state, ending at **Ready**
+    only when both files validate and the runtime is present.
+12. **Test Vision Model** returns a real sanitized result (or an honest error) — never a fabricated one.
+13. **VLM configured:** sending an image produces an analysis; the reply exposes **no local path**.
+14. Diagnostics export contains **no** image bytes, paths, or OCR/vision text.
+15. System Health → Vision Chat status matches your actual setup state.
+16. Workspace: a conversation with an image shows `has_image_attachment` (count only — no path/content).
+
+## OCR fallback — why it's still unavailable (honest)
+
+OCR-on-upload for pasted/uploaded images is **not wired**. DAWN's only OCR path today is inside the Live
+Vision webcam sidecar (RapidOCR on the current camera frame), which can't read an arbitrary image file
+without a change to that Python sidecar + its venv. `vision:capabilities` reports `ocr: false` for chat
+uploads, and DAWN never fabricates OCR text. This remains a future loop, not a shipped-but-broken feature.

@@ -57,4 +57,20 @@ export function mapRowToItem(def: AdapterDef, row: any): MappedItem | null {
   };
 }
 
-export default { ADAPTER_DEFS, mapRowToItem };
+/**
+ * Merge SAFE image-attachment flags into a conversation item's metadata. Only counts/booleans — never
+ * a path, hash, filename, OCR, or image bytes. Used by the registry so the Workspace Graph reflects
+ * that a chat has images without leaking any content.
+ */
+export function withImageMeta(metadataJson: string, count: number): string {
+  if (!count || count < 1) return metadataJson;
+  let obj: any = {};
+  try { obj = metadataJson ? JSON.parse(metadataJson) : {}; } catch { obj = {}; }
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) obj = {};
+  obj.has_image_attachment = true;
+  obj.attachment_type = 'image';
+  obj.attachment_count = Math.max(1, Math.floor(count));
+  return safeMetadata(obj);
+}
+
+export default { ADAPTER_DEFS, mapRowToItem, withImageMeta };

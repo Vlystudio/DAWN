@@ -240,6 +240,14 @@ const api = {
     forget: () => ipcRenderer.invoke('vision:forget'),
     snapshot: (annotated?: boolean) => ipcRenderer.invoke('vision:snapshot', annotated),
     frame: () => ipcRenderer.invoke('vision:frame'),
+    // Vision Chat model setup (config only — full paths never cross this boundary)
+    capabilities: () => ipcRenderer.invoke('vision:capabilities'),
+    validate: () => ipcRenderer.invoke('vision:validate'),
+    autoDetect: () => ipcRenderer.invoke('vision:autoDetect'),
+    applyPair: (modelName: string, mmprojName: string) => ipcRenderer.invoke('vision:applyPair', { modelName, mmprojName }),
+    pickModel: (kind: 'model' | 'mmproj') => ipcRenderer.invoke('vision:pickModel', { kind }),
+    clearSetup: () => ipcRenderer.invoke('vision:clearSetup'),
+    testModel: () => ipcRenderer.invoke('vision:testModel'),
   },
   graph: {
     get: () => ipcRenderer.invoke('graph:get'),

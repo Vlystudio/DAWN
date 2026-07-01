@@ -114,6 +114,18 @@ export function registerIpc() {
     const c = visionChat.capabilities(); // sanitized — never expose the CLI/model path
     return { ready: c.ready, mode: c.mode, status: c.status, reason: c.reason, nextAction: c.nextAction, cliPresent: c.cliPresent, modelConfigured: c.modelConfigured };
   });
+  // Vision Chat model setup (Model Cookbook panel) — file picks stay in main; only basenames return.
+  ipcMain.handle('vision:validate', () => visionChat.validate());
+  ipcMain.handle('vision:autoDetect', () => visionChat.autoDetect());
+  ipcMain.handle('vision:applyPair', (_e, { modelName, mmprojName }) => visionChat.applyPair(modelName, mmprojName));
+  ipcMain.handle('vision:clearSetup', () => visionChat.clearSetup());
+  ipcMain.handle('vision:testModel', () => visionChat.testModel());
+  ipcMain.handle('vision:pickModel', async (e, { kind }) => {
+    const win = BrowserWindow.fromWebContents(e.sender);
+    const res = await dialog.showOpenDialog(win!, { title: kind === 'mmproj' ? 'Select the mmproj projector (.gguf)' : 'Select the vision model (.gguf)', properties: ['openFile'], filters: [{ name: 'GGUF', extensions: ['gguf'] }] });
+    if (res.canceled || !res.filePaths[0]) return { ok: false, canceled: true };
+    return visionChat.setModelPath(kind === 'mmproj' ? 'mmproj' : 'model', res.filePaths[0]);
+  });
 
   // Memory
   ipcMain.handle('memory:list', () => memory.list());

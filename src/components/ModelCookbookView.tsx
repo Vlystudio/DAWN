@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { BookOpen, RefreshCw, Cpu } from 'lucide-react';
 import { PageShell, StatusBadge, LoadingState, ErrorState, EmptyState, Button, DataTable } from '../ui/system';
 import { resolveStatus } from '../lib/statusMap';
+import VisionSetupPanel from './VisionSetupPanel';
 
 /**
  * ModelCookbookView — "which installed model is best for what, and will it run here." Pulls real data
@@ -44,6 +45,9 @@ export default function ModelCookbookView({ onNav }: { onNav?: (view: string) =>
           <EmptyState icon={<BookOpen size={28} />} title="No installed models" body="Download or import a GGUF model, then come back." action={onNav ? <Button variant="primary" onClick={() => onNav('hub')}>Open Model Hub</Button> : undefined} />
         ) : (
           <>
+            {/* Vision Chat model setup (real: validate / auto-detect / test) */}
+            <VisionSetupPanel />
+
             {/* best-for-role cards */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-5">
               {Object.entries(best).map(([role, e]) => (

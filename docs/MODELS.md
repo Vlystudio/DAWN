@@ -76,3 +76,11 @@ GGUF + its `mmproj` projector** (e.g. Qwen2.5-VL, LLaVA, MiniCPM-V) plus the bun
 **Vision** role). `parseModelId().isVision` detects vision GGUFs by name; `mmproj` files are stored in the
 models folder but never listed as standalone models. If no vision model is configured, DAWN honestly says
 it cannot see the image (it never guesses). See [VISION_CHAT.md](VISION_CHAT.md).
+
+### Vision model setup (Model Cookbook)
+
+The **Model Cookbook → "Vision Chat model"** panel configures the VLM used by Vision Chat: **auto-detect**
+a VLM + `mmproj` pair from your model folder (scan is folder-scoped, never the whole disk; nothing applied
+without confirmation), or pick each file manually. It shows a granular, honest status (not configured →
+missing pieces → **Ready**) and a **Test Vision Model** button that runs the real `llama-mtmd-cli` on a
+tiny image. File paths never leave the main process (only file names are shown). See [VISION_CHAT.md](VISION_CHAT.md).
