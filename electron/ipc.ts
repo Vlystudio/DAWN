@@ -211,6 +211,16 @@ export function registerIpc() {
   ipcMain.handle('helperRuntime:queueStatus', () => require('./services/rag/helperQueue').default.status());
   ipcMain.handle('helperRuntime:cancelJobs', () => { require('./services/rag/helperQueue').default.cancelAll('cancelled'); return require('./services/rag/helperQueue').default.status(); });
   ipcMain.handle('helperRuntime:clearQueue', () => { require('./services/rag/helperQueue').default.clear('cleared'); return require('./services/rag/helperQueue').default.status(); });
+  // Helper performance analytics (safe metadata only — never prompt/response/chunk/source text)
+  ipcMain.handle('helperRuntime:analytics', () => require('./services/rag/helperAnalyticsCore').default.snapshot(app.getVersion()));
+  ipcMain.handle('helperRuntime:resetAnalytics', () => { require('./services/rag/helperAnalyticsCore').default.reset(); return { ok: true }; });
+  ipcMain.handle('helperRuntime:exportAnalytics', async (e) => {
+    const win = BrowserWindow.fromWebContents(e.sender);
+    const res = await dialog.showSaveDialog(win!, { title: 'Export helper analytics (safe)', defaultPath: `dawn-helper-analytics-${new Date().toISOString().slice(0, 10)}.json`, filters: [{ name: 'JSON', extensions: ['json'] }] });
+    if (!res.filePath) return { ok: false, canceled: true };
+    fs.writeFileSync(res.filePath, JSON.stringify(require('./services/rag/helperAnalyticsCore').default.snapshot(app.getVersion()), null, 2));
+    return { ok: true, path: require('path').basename(res.filePath) };
+  });
   ipcMain.handle('helperRuntime:pickModel', async (e) => {
     const win = BrowserWindow.fromWebContents(e.sender);
     const res = await dialog.showOpenDialog(win!, { title: 'Select a small helper model (.gguf)', properties: ['openFile'], filters: [{ name: 'GGUF', extensions: ['gguf'] }] });

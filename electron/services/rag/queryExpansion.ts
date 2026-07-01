@@ -11,6 +11,8 @@ import core from './queryExpansionCore';
 import hmCore, { HelperProvider } from './helperModelCore';
 import aid from './localModelAid';
 import helperRuntime from './helperRuntime';
+import helperQueue from './helperQueue';
+import analytics, { statusFor } from './helperAnalyticsCore';
 
 interface RouteOut { ok: boolean; text?: string; provider: HelperProvider; reason?: string; status?: string; queueWaitMs?: number; runMs?: number }
 
@@ -44,6 +46,7 @@ export async function rewrite(query: string): Promise<RewriteResult> {
   const base = { queries: [query], variants: [] as string[], keywords: [] as string[] };
   if (!s.queryRewriteEnabled) return { ...base, mode: 'disabled', provider: 'none', status: 'skipped' };
   const r = await routeHelper('query_rewrite', core.buildRewritePrompt(query, s.maxRewriteQueries || 2), { maxTokens: 120 });
+  try { analytics.record({ role: 'query_rewriter', provider: r.provider as any, status: statusFor(r.provider as any, r.ok, r.status), queueWaitMs: r.queueWaitMs, runMs: r.runMs, reason: r.reason, generation: helperQueue.generation }); } catch { /* analytics must never break retrieval */ }
   const meta = { provider: r.provider, reason: r.reason, status: r.status, queueWaitMs: r.queueWaitMs, runMs: r.runMs };
   if (!r.ok) { logger.info('rag', `query rewrite fallback (provider=${r.provider}, status=${r.status}, ${r.reason})`); return { ...base, mode: 'fallback', ...meta }; }
   const parsed = core.parseRewrite(r.text || '', query, s.maxRewriteQueries || 2);
@@ -57,6 +60,7 @@ export async function hyde(query: string): Promise<HydeResult> {
   const s: any = settings.get();
   if (!s.hydeEnabled) return { text: null, mode: 'disabled', provider: 'none', status: 'skipped' };
   const r = await routeHelper('hyde', core.buildHydePrompt(query), { maxTokens: 160 });
+  try { analytics.record({ role: 'hyde_generator', provider: r.provider as any, status: statusFor(r.provider as any, r.ok, r.status), queueWaitMs: r.queueWaitMs, runMs: r.runMs, reason: r.reason, generation: helperQueue.generation }); } catch { /* */ }
   const meta = { provider: r.provider, reason: r.reason, status: r.status, queueWaitMs: r.queueWaitMs, runMs: r.runMs };
   if (!r.ok) { logger.info('rag', `HyDE fallback (provider=${r.provider}, status=${r.status}, ${r.reason})`); return { text: null, mode: 'fallback', ...meta }; }
   const t = core.sanitizeHyde(r.text || '');

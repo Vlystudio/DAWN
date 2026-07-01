@@ -56,6 +56,9 @@ const api = {
     queueStatus: () => ipcRenderer.invoke('helperRuntime:queueStatus'),
     cancelJobs: () => ipcRenderer.invoke('helperRuntime:cancelJobs'),
     clearQueue: () => ipcRenderer.invoke('helperRuntime:clearQueue'),
+    analytics: () => ipcRenderer.invoke('helperRuntime:analytics'),
+    resetAnalytics: () => ipcRenderer.invoke('helperRuntime:resetAnalytics'),
+    exportAnalytics: () => ipcRenderer.invoke('helperRuntime:exportAnalytics'),
   },
   setup: {
     complete: (patch: any) => ipcRenderer.invoke('setup:complete', patch),

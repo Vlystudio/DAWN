@@ -220,3 +220,27 @@ work can't linger:
 
 Controls live in **Model Cookbook → Helper runtime** (Keep-warm toggle, Cancel jobs, Clear queue) and
 System Health → Retrieval Helper Models shows live queue metrics.
+
+## Helper performance analytics (local-only, safe metadata)
+
+DAWN records **safe, local-only** performance stats for each helper job so you can see how the helper
+runtime is behaving (and to evidence future adaptive routing). It stores **only** metadata — never a
+prompt, response, retrieved chunk, source text, or file path.
+
+Per job it records: role · provider (helper_runtime / chat / lexical / none) · status (completed /
+cancelled / superseded / timeout / runtime_stopped / app_quitting / unavailable / fallback_used / failed /
+skipped) · queue-wait ms · run ms · a short safe reason · timestamp · generation id. Storage is a
+**bounded rolling buffer** (most recent 500), so it never grows without limit; only aggregates + the last
+10 safe events are shown.
+
+Per role it computes: jobs, success/timeout/cancel rates, **p50/p95** queue-wait, run, and total latency
+(p50 = median, p95 = 95th percentile — the "slow tail"), averages, last status, and a **health label**:
+`healthy · slow · timeout-prone · mostly-unavailable · insufficient-data`. A role stays **insufficient
+data** until it has ≥8 samples — DAWN never labels a role unhealthy on a tiny sample. Global metrics show
+the slowest role by p95, the most timeout-prone role, and advisory **hints** (e.g. "Query rewrite helper
+is slow: p95 4200 ms over 25 samples") — advisory only; this loop does **not** auto-change routing.
+
+Controls (Model Cookbook → Helper runtime → Performance): **Reset session** and **Export JSON (safe)**.
+The export contains only the safe metadata above — no prompt/response/chunk/source content. Analytics are
+**session-only** (in memory); cross-session history is a future loop. If analytics recording ever fails,
+it is swallowed — it can never break retrieval or chat.

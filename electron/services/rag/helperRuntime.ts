@@ -8,6 +8,7 @@ import runtime from '../runtime';
 import * as llama from '../llama';
 import hmCore from './helperModelCore';
 import helperQueue from './helperQueue';
+import helperAnalytics from './helperAnalyticsCore';
 
 /**
  * helperRuntime.ts — a SECOND, dedicated llama.cpp `llama-server` process for retrieval HELPER tasks
@@ -37,6 +38,7 @@ export interface HelperStatus {
   keepWarm?: boolean;
   idleStopMs?: number;
   queue?: import('./helperQueue').QueueStatus;
+  analytics?: import('./helperAnalyticsCore').GlobalMetrics;
 }
 
 function cfg() {
@@ -84,6 +86,7 @@ class HelperRuntimeManager {
       error: this.error,
       installed,
       queue: helperQueue.status(),
+      analytics: helperAnalytics.global(), // lightweight global summary (full snapshot via helperRuntime:analytics)
     };
   }
 
@@ -265,10 +268,12 @@ class HelperRuntimeManager {
   async test(): Promise<{ ok: boolean; latencyMs?: number; provider: string; model: string; error?: string }> {
     const model = baseName(cfg().modelPath);
     if (!cfg().enabled) return { ok: false, provider: 'helper_runtime', model, error: 'Helper runtime is disabled.' };
-    if (!this.isReady()) return { ok: false, provider: 'helper_runtime', model, error: this.error || 'Helper runtime is not running.' };
+    if (!this.isReady()) { try { require('./helperAnalyticsCore').default.record({ role: 'test', provider: 'helper_runtime', status: 'unavailable', reason: 'not running' }); } catch { /* */ } return { ok: false, provider: 'helper_runtime', model, error: this.error || 'Helper runtime is not running.' }; }
     const t0 = Date.now();
     const r = await this.callHelper('Reply with the single word: OK', { maxTokens: 8 });
-    if (r.ok) return { ok: true, latencyMs: Date.now() - t0, provider: 'helper_runtime', model };
+    const runMs = Date.now() - t0;
+    try { require('./helperAnalyticsCore').default.record({ role: 'test', provider: 'helper_runtime', status: r.ok ? 'completed' : 'failed', runMs, reason: r.reason }); } catch { /* */ }
+    if (r.ok) return { ok: true, latencyMs: runMs, provider: 'helper_runtime', model };
     return { ok: false, provider: 'helper_runtime', model, error: r.reason || 'Helper request failed.' };
   }
 }

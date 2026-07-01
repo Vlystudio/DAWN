@@ -116,3 +116,10 @@ Helper-runtime requests go through a bounded, **one-at-a-time** priority queue (
 entailment low) with honest cancellation (cancelled / superseded / timeout / runtime_stopped /
 app_quitting) and **keep-warm** / idle-stop controls. Queue metrics never include prompt/response text.
 See [LOCAL_KNOWLEDGE.md](LOCAL_KNOWLEDGE.md).
+
+### Helper performance analytics
+
+The helper runtime records safe, local-only per-role performance (p50/p95 latency, success/timeout/cancel
+rates, health label + advisory hints) with a bounded rolling buffer — **no prompt/response/chunk/source
+text**. See the dashboard under Model Cookbook → Helper runtime → Performance, and
+[LOCAL_KNOWLEDGE.md](LOCAL_KNOWLEDGE.md). Advisory only in this build; adaptive routing is a future loop.

@@ -92,7 +92,7 @@ export interface MaturitySignals {
   helperModelsConfigured?: number; helperChatFallback?: boolean;
   helperRuntimeEnabled?: boolean; helperRuntimeState?: string; helperRuntimeReachable?: boolean;
   helperRuntimeModelConfigured?: boolean; helperRuntimeError?: string | null; helperRuntimeInstalled?: boolean;
-  helperQueueSummary?: string;
+  helperQueueSummary?: string; helperPerfSummary?: string;
 }
 
 const n = (x?: number) => (typeof x === 'number' && isFinite(x) ? x : 0);
@@ -231,6 +231,7 @@ const EVAL: Record<string, Evaluator> = {
       'Dedicated helper slots + Model Cookbook roles for query rewrite / HyDE / entailment / rerank',
       'Helper outputs stay untrusted (never cited, never trigger tools); prompts/responses are not logged to diagnostics',
       'Every helper result records its provenance (helper_runtime / chat / lexical / skipped)',
+      `Per-role latency analytics (local-only, safe metadata — no prompt/response/chunk text): p50/p95 latency, success/timeout/cancel rates, health labels + advisory hints${s.helperPerfSummary ? ` — ${s.helperPerfSummary}` : ' (insufficient data until ≥8 samples)'}`,
     ];
     const missing: string[] = [];
     let status: MaturityStatus;
