@@ -13,6 +13,7 @@ import settings from '../settings';
 import * as llama from '../llama';
 import security from '../security/promptSecurity';
 import core, { DocAction } from './docCore';
+import live from '../workspace/liveHooks';
 
 const newId = () => crypto.randomUUID();
 const now = () => Date.now();
@@ -35,7 +36,9 @@ export function create(opts: { title?: string; content?: string; format?: string
   db.run('INSERT INTO documents (id,title,content,format,created_at,updated_at,metadata_json) VALUES (?,?,?,?,?,?,?)',
     [id, opts.title || 'Untitled document', opts.content || '', opts.format || 'markdown', now(), now(), '{}']);
   rebuildGraph();
-  return get(id);
+  const r: any = get(id);
+  live.register('document', id, r?.title || 'Document', 'documents'); // live workspace registration
+  return r;
 }
 export function update(id: string, patch: { title?: string; content?: string; archived?: number }) {
   const doc: any = get(id);
@@ -45,11 +48,14 @@ export function update(id: string, patch: { title?: string; content?: string; ar
   const archived = patch.archived !== undefined ? patch.archived : doc.archived;
   db.run('UPDATE documents SET title=?, content=?, archived=?, updated_at=? WHERE id=?', [title, content, archived, now(), id]);
   if (patch.title !== undefined || patch.archived !== undefined) rebuildGraph();
-  return get(id);
+  const r: any = get(id);
+  if (archived) live.remove('document', id); else live.register('document', id, r?.title || 'Document', 'documents');
+  return r;
 }
 export function remove(id: string) {
   db.run('DELETE FROM documents WHERE id=?', [id]);
   db.run('DELETE FROM document_versions WHERE doc_id=?', [id]);
+  live.remove('document', id); // live prune of the workspace item
   rebuildGraph();
   return true;
 }

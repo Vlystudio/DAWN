@@ -10,7 +10,7 @@ import fm from '../electron/services/featureMaturityCore';
 test('Live Workspace Hooks is honestly PARTIAL and lists reconcile-only features', () => {
   const r = fm.evaluateArea('workspace_livehooks');
   assert.equal(r.status, 'PARTIAL');
-  assert.ok(r.works.some((w) => /Notes \+ Tasks/.test(w)));
+  assert.ok(r.works.some((w) => /Notes.*Tasks.*Documents.*Memories/.test(w)), 'lists the hooked features');
   assert.ok(r.missing.some((m) => /reconcile-only/i.test(m)), 'must list what is still reconcile-only');
 });
 

@@ -1,6 +1,7 @@
 import * as crypto from 'crypto';
 import db from './db';
 import settings from './settings';
+import live from './workspace/liveHooks';
 
 /**
  * Memory — durable, user-controlled facts/preferences/projects/etc. Stored
@@ -41,6 +42,7 @@ export function add(content: string, type: MemoryType = 'personal_fact', source 
     'INSERT INTO memories (id,type,content,source,importance,confidence,pinned,last_used_at,created_at) VALUES (?,?,?,?,?,?,?,?,?)',
     [m.id, m.type, m.content, m.source, m.importance, m.confidence, m.pinned, m.last_used_at, m.created_at]
   );
+  live.register('memory', m.id, m.content.slice(0, 120), 'memory'); // live workspace registration
   return m;
 }
 
@@ -51,12 +53,15 @@ export function update(id: string, patch: Partial<Memory>): Memory | null {
   const type = patch.type !== undefined ? patch.type : cur.type;
   const pinned = patch.pinned !== undefined ? (patch.pinned ? 1 : 0) : cur.pinned;
   db.run('UPDATE memories SET content=?, type=?, pinned=? WHERE id=?', [content, type, pinned, id]);
-  return db.get<Memory>('SELECT * FROM memories WHERE id=?', [id]);
+  const r = db.get<Memory>('SELECT * FROM memories WHERE id=?', [id]);
+  if (r) live.register('memory', id, String(r.content || '').slice(0, 120), 'memory'); // live update
+  return r;
 }
 
 export function remove(id: string) {
   db.run('DELETE FROM memories WHERE id=?', [id]);
   db.run('DELETE FROM memory_links WHERE memory_id=?', [id]);
+  live.remove('memory', id); // live prune of the workspace item
   return true;
 }
 
