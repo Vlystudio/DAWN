@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { FolderOpen, Plus, Trash2, CheckCircle2, AlertTriangle, HardDrive, Gauge, Zap, Loader2, Trophy } from 'lucide-react';
 import { Button } from '../ui/button';
+import { PageShellPanel } from '../ui/system';
 import { useRuntimeStore } from '../state/runtimeStore';
 
 function fmtBytes(n: number) {
@@ -63,19 +64,16 @@ export default function ModelManager() {
   }
 
   return (
-    <div className="p-6 max-w-3xl mx-auto h-full overflow-y-auto">
-      <div className="flex items-start justify-between mb-4">
-        <div>
-          <h1 className="text-xl font-bold">Model Manager</h1>
-          <p className="text-sm text-dim">Local GGUF models. Nothing is downloaded automatically — import your own.</p>
-          <p className="text-xs text-faint mt-1 flex items-center gap-1"><HardDrive size={12} /> System RAM: {ram} GB</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="ghost" onClick={() => window.dawn.models.openFolder()}><FolderOpen size={15} /> Folder</Button>
-          <Button variant="primary" onClick={importModel}><Plus size={15} /> Import GGUF</Button>
-        </div>
-      </div>
-
+    <PageShellPanel
+      width="max-w-3xl"
+      icon={<HardDrive size={22} />}
+      title="Model Manager"
+      subtitle={<>Local GGUF models. Nothing is downloaded automatically — import your own.<span className="block text-xs text-faint mt-1">System RAM: {ram} GB</span></>}
+      actions={<>
+        <Button variant="ghost" onClick={() => window.dawn.models.openFolder()}><FolderOpen size={15} /> Folder</Button>
+        <Button variant="primary" onClick={importModel}><Plus size={15} /> Import GGUF</Button>
+      </>}
+    >
       <div className="space-y-2">
         {models.length === 0 ? (
           <div className="glass p-8 text-center text-dim">
@@ -141,6 +139,6 @@ export default function ModelManager() {
         Selecting a model <b>loads it immediately</b> — DAWN swaps it in the background, no power toggle or restart needed.
         <b> Benchmark</b> loads a model, times a fixed prompt, then restores your current chat model. Browse &amp; download more in the Model Hub.
       </div>
-    </div>
+    </PageShellPanel>
   );
 }

@@ -71,3 +71,25 @@ the master–detail Research/Documents/Skills views) are **not** blindly wrapped
 so changes their scroll/split behaviour, which needs visual verification. Those migrations are done
 one screen at a time with a human in the loop; System Health keeps **Design System → Partial** with
 the exact list until then. The status-language layer (labels, tones, risk colours) is already unified.
+
+## Layout-safe shell variants (beta.13)
+
+The original `PageShell` only fits simple top-scroll pages. Forcing it onto split/log/canvas screens
+breaks their scroll behaviour (the beta.12 lesson). So there are now **layout-safe variants**
+(`src/ui/system.tsx`, layout classes in `src/ui/shellLayout.ts`, invariants unit-tested in
+`tests/shellLayout.test.ts`):
+
+| Variant | Use for | Guarantee |
+|---|---|---|
+| `PageShell` / `PageShellPanel` | simple top-scroll pages / card grids | single top-level scroll |
+| `PageShellSplit` | master–detail (sidebar + main + optional detail) | fixed header, **independently-scrolling** columns, no double-scroll |
+| `PageShellLog` | logs / diagnostics | **fixed** header/actions + one scrollable body box (`bodyRef`/`bodyClassName` preserve auto-scroll) |
+| `PageShellCanvas` | brain / graph / canvas | header + **full-bleed non-scrolling** canvas + optional scrolling detail panel |
+
+The invariants are testable without rendering: e.g. a split shell's `splitBody` must be a *clean flex
+host* (fills + shrinks + does **not** scroll) while its columns each scroll; a log shell's header must
+be fixed while exactly the body scrolls. `tests/shellLayout.test.ts` asserts these on the class strings.
+
+**Migrated so far:** Logs → `PageShellLog` (fixed header + scroll box preserved), Model Manager →
+`PageShellPanel`. Others migrate one at a time using the matching variant; System Health tracks the
+remaining list under **Design System → Partial**.

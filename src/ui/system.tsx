@@ -1,6 +1,23 @@
 import React from 'react';
 import { Badge, Spinner, ErrorCallout, EmptyState } from './primitives';
 import { resolveStatus } from '../lib/statusMap';
+import { SHELL } from './shellLayout';
+
+/** Shared page header (icon + title + subtitle + status + actions). Used by every shell variant. */
+function ShellHeader({ icon, title, subtitle, status, actions, className = '' }: {
+  icon?: React.ReactNode; title: string; subtitle?: React.ReactNode; status?: React.ReactNode; actions?: React.ReactNode; className?: string;
+}) {
+  return (
+    <div className={`flex items-start gap-3 ${className}`}>
+      {icon ? <span style={{ color: 'var(--accent)' }} className="mt-0.5 shrink-0" aria-hidden>{icon}</span> : null}
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2 flex-wrap"><h1 className="text-xl font-bold">{title}</h1>{status}</div>
+        {subtitle ? <p className="text-sm text-dim">{subtitle}</p> : null}
+      </div>
+      {actions ? <div className="shrink-0 flex items-center gap-2">{actions}</div> : null}
+    </div>
+  );
+}
 
 /**
  * system.tsx — DAWN's shared "design system" layer built on top of primitives.tsx. These give every
@@ -25,6 +42,75 @@ export function PageShell({ icon, title, subtitle, actions, children, width = 'm
           {actions ? <div className="shrink-0 flex items-center gap-2">{actions}</div> : null}
         </div>
         {children}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * PageShellSplit — master–detail layout: a fixed header, then a body of independently-scrolling
+ * columns (sidebar | main | optional detail). Preserves DAWN's existing split screens' scroll
+ * behaviour (no double-scroll, fixed header). Widths default sensibly; pass sidebarWidth/detailWidth.
+ */
+export function PageShellSplit({ icon, title, subtitle, status, actions, sidebar, children, detail, sidebarWidth = 'w-72', detailWidth = 'w-80' }: {
+  icon?: React.ReactNode; title: string; subtitle?: React.ReactNode; status?: React.ReactNode; actions?: React.ReactNode;
+  sidebar?: React.ReactNode; children: React.ReactNode; detail?: React.ReactNode; sidebarWidth?: string; detailWidth?: string;
+}) {
+  return (
+    <div className={SHELL.splitRoot}>
+      <div className={`${SHELL.splitHeader} px-6 py-4`}><ShellHeader icon={icon} title={title} subtitle={subtitle} status={status} actions={actions} /></div>
+      <div className={SHELL.splitBody}>
+        {sidebar ? <div className={`${SHELL.splitSidebar} ${sidebarWidth}`}>{sidebar}</div> : null}
+        <div className={SHELL.splitMain}>{children}</div>
+        {detail ? <div className={`${SHELL.splitDetail} ${detailWidth}`}>{detail}</div> : null}
+      </div>
+    </div>
+  );
+}
+
+/** PageShellPanel — a top-scroll page for card/panel grids (same scroll model as PageShell). */
+export function PageShellPanel({ icon, title, subtitle, status, actions, children, width = 'max-w-5xl' }: {
+  icon?: React.ReactNode; title: string; subtitle?: React.ReactNode; status?: React.ReactNode; actions?: React.ReactNode; children: React.ReactNode; width?: string;
+}) {
+  return (
+    <div className={SHELL.panelRoot}>
+      <div className={`${width} ${SHELL.panelInner}`}>
+        <ShellHeader icon={icon} title={title} subtitle={subtitle} status={status} actions={actions} className="mb-4" />
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * PageShellLog — logs/diagnostics: a FIXED header/action row + a single scrollable body box. This is
+ * the layout normal PageShell would break (it would let the whole page scroll instead of the box).
+ * `notice` renders a small always-visible line (e.g. a redaction note) above the scroll box.
+ */
+export function PageShellLog({ icon, title, subtitle, actions, notice, children, bodyRef, bodyClassName = '' }: {
+  icon?: React.ReactNode; title: string; subtitle?: React.ReactNode; actions?: React.ReactNode; notice?: React.ReactNode; children: React.ReactNode;
+  bodyRef?: React.Ref<HTMLDivElement>; bodyClassName?: string;
+}) {
+  return (
+    <div className={SHELL.logRoot}>
+      <div className={`${SHELL.logHeader} mb-3`}><ShellHeader icon={icon} title={title} subtitle={subtitle} actions={actions} /></div>
+      {notice ? <div className={`${SHELL.logHeader} mb-2`}>{notice}</div> : null}
+      <div ref={bodyRef} className={`${SHELL.logBody} ${bodyClassName}`}>{children}</div>
+    </div>
+  );
+}
+
+/** PageShellCanvas — graph/brain/canvas screens: header + a full-bleed non-scrolling canvas region
+ *  plus an optional detail side panel. The canvas area owns its own rendering/scroll. */
+export function PageShellCanvas({ icon, title, subtitle, actions, children, detail, detailWidth = 'w-80' }: {
+  icon?: React.ReactNode; title: string; subtitle?: React.ReactNode; actions?: React.ReactNode; children: React.ReactNode; detail?: React.ReactNode; detailWidth?: string;
+}) {
+  return (
+    <div className={SHELL.canvasRoot}>
+      <div className={`${SHELL.canvasHeader} px-6 py-3`}><ShellHeader icon={icon} title={title} subtitle={subtitle} actions={actions} /></div>
+      <div className={SHELL.splitBody}>
+        <div className={SHELL.canvasBody}>{children}</div>
+        {detail ? <div className={`${SHELL.canvasDetail} ${detailWidth}`}>{detail}</div> : null}
       </div>
     </div>
   );
@@ -85,4 +171,4 @@ export function DataTable<T>({ columns, rows, empty = 'No rows.', rowKey, onRowC
   );
 }
 
-export default { PageShell, StatusBadge, HealthBadge, LoadingState, ErrorState, EmptyState, ActionBar, Button, DataTable };
+export default { PageShell, PageShellSplit, PageShellPanel, PageShellLog, PageShellCanvas, StatusBadge, HealthBadge, LoadingState, ErrorState, EmptyState, ActionBar, Button, DataTable };

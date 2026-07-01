@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Button } from '../ui/button';
+import { ScrollText } from 'lucide-react';
+import { PageShellLog, Button } from '../ui/system';
 
 /** Logs page — startup steps, command output, errors, with timestamps. */
 export default function LogsView() {
@@ -24,27 +25,26 @@ export default function LogsView() {
   };
 
   return (
-    <div className="p-6 h-full flex flex-col">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h1 className="text-xl font-bold">Logs</h1>
-          <p className="text-sm text-dim">Startup, database, chat and graph activity.</p>
-        </div>
-        <Button variant="ghost" onClick={() => window.dawn.logs.clear().then(() => setLogs([]))}>Clear</Button>
-      </div>
-      <div ref={boxRef} className="flex-1 overflow-y-auto glass p-4 font-mono text-xs space-y-0.5">
-        {logs.length === 0 ? (
-          <div className="text-faint text-center py-10">No log entries yet.</div>
-        ) : (
-          logs.map((l, i) => (
-            <div key={i} className="flex gap-3">
-              <span className="text-faint shrink-0">{new Date(l.ts).toLocaleTimeString()}</span>
-              <span className="text-neural-cyan shrink-0 w-16">[{l.source}]</span>
-              <span className={color[l.level] || 'text-ink'}>{l.message}</span>
-            </div>
-          ))
-        )}
-      </div>
-    </div>
+    <PageShellLog
+      icon={<ScrollText size={22} />}
+      title="Logs"
+      subtitle="Startup, database, chat and graph activity."
+      notice={<div className="text-[11px] text-faint">Errors are redacted; secrets are never logged. Detailed diagnostics: System Health → Export bundle.</div>}
+      actions={<Button variant="secondary" onClick={() => window.dawn.logs.clear().then(() => setLogs([]))}>Clear</Button>}
+      bodyRef={boxRef}
+      bodyClassName="glass p-4 font-mono text-xs space-y-0.5"
+    >
+      {logs.length === 0 ? (
+        <div className="text-faint text-center py-10">No log entries yet.</div>
+      ) : (
+        logs.map((l, i) => (
+          <div key={i} className="flex gap-3">
+            <span className="text-faint shrink-0">{new Date(l.ts).toLocaleTimeString()}</span>
+            <span className="text-neural-cyan shrink-0 w-16">[{l.source}]</span>
+            <span className={color[l.level] || 'text-ink'}>{l.message}</span>
+          </div>
+        ))
+      )}
+    </PageShellLog>
   );
 }
