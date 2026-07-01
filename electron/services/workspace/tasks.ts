@@ -10,6 +10,7 @@ import runtime from '../runtime';
 import * as llama from '../llama';
 import security from '../security/promptSecurity';
 import core, { Priority, Status, Recurrence } from './wsCore';
+import live from './liveHooks';
 
 const newId = () => crypto.randomUUID();
 const now = () => Date.now();
@@ -39,7 +40,9 @@ export function create(opts: { title?: string; details?: string; priority?: Prio
       opts.due_at || null, opts.remind_at || null, opts.recurrence || 'none', 0, opts.source_type || null, opts.source_id || null, now(), now(), '{}']);
   logEvent(id, 'created', opts.title || '');
   rebuild();
-  return get(id);
+  const r: any = get(id);
+  live.register('task', id, r?.title || 'Task', 'tasks'); // live workspace registration
+  return r;
 }
 export function update(id: string, patch: any) {
   const t: any = db.get('SELECT * FROM tasks WHERE id=?', [id]);
@@ -49,11 +52,14 @@ export function update(id: string, patch: any) {
   db.run('UPDATE tasks SET title=?, details=?, status=?, priority=?, due_at=?, remind_at=?, recurrence=?, reminded=?, updated_at=? WHERE id=?',
     [f('title'), f('details'), f('status'), f('priority'), f('due_at'), f('remind_at'), f('recurrence'), remindReset, now(), id]);
   rebuild();
-  return get(id);
+  const r: any = get(id);
+  live.register('task', id, r?.title || 'Task', 'tasks'); // live update
+  return r;
 }
 export function remove(id: string) {
   db.run('DELETE FROM tasks WHERE id=?', [id]);
   db.run('DELETE FROM task_events WHERE task_id=?', [id]);
+  live.remove('task', id); // live prune of the workspace item
   rebuild();
   return true;
 }

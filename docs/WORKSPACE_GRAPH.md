@@ -110,6 +110,5 @@ is the pure, tested `buildWorkspaceSearchSql` (parameterized, `excludeId`, type/
 
 ## Limitations / next steps
 
-- Auto-registration is **reconcile-based** (scans real sources on open / Brain rebuild), not a live
-  hook on every individual create — idempotent and safe, and reflects real data within one reconcile.
+- Auto-registration has **live hooks** for Notes + Tasks (instant register/update/prune on CRUD, idempotent); everything else is **reconcile-based** (scans real sources on Workspace open / Brain rebuild). Reconcile remains the fallback and stays idempotent.
 - Brain node details now expose inline linking for workspace_item nodes (Related items + "+ Link…" using the visual picker).

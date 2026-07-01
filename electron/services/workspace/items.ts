@@ -51,6 +51,13 @@ export function update(id: string, patch: { label?: string; sourceFeature?: stri
   return { ok: true, item: get(id) };
 }
 
+/** Delete the auto-registered item for a (type, ref_id), if present (live-hook deletes). */
+export function removeByRef(type: string, refId: string) {
+  const row = db.get<{ id: string }>('SELECT id FROM workspace_items WHERE type=? AND ref_id=?', [String(type || ''), String(refId || '')]);
+  if (row) return remove(row.id);
+  return { ok: true, missing: true };
+}
+
 /** Delete an item and any links touching it (no dangling edges). */
 export function remove(id: string) {
   const item = get(id);
@@ -76,4 +83,4 @@ export function countAll(): number {
   try { return Number(db.get<{ c: number }>('SELECT COUNT(*) c FROM workspace_items')?.c || 0); } catch { return 0; }
 }
 
-export default { create, get, update, remove, list, countAll };
+export default { create, get, update, remove, removeByRef, list, countAll };

@@ -12,6 +12,7 @@ import * as llama from '../llama';
 import security from '../security/promptSecurity';
 import core from './wsCore';
 import tasks from './tasks';
+import live from './liveHooks';
 
 const newId = () => crypto.randomUUID();
 const now = () => Date.now();
@@ -34,7 +35,9 @@ export function create(opts: { title?: string; content?: string; tags?: string }
   db.run('INSERT INTO notes (id,title,content,tags,created_at,updated_at) VALUES (?,?,?,?,?,?)',
     [id, opts.title || '', opts.content || '', opts.tags || '', now(), now()]);
   rebuild();
-  return get(id);
+  const r: any = get(id);
+  live.register('note', id, r?.title || r?.content || 'Note', 'notes'); // live workspace registration
+  return r;
 }
 export function update(id: string, patch: any) {
   const n: any = db.get('SELECT * FROM notes WHERE id=?', [id]);
@@ -43,11 +46,14 @@ export function update(id: string, patch: any) {
   db.run('UPDATE notes SET title=?, content=?, tags=?, pinned=?, archived=?, updated_at=? WHERE id=?',
     [f('title'), f('content'), f('tags'), f('pinned'), f('archived'), now(), id]);
   rebuild();
-  return get(id);
+  const r: any = get(id);
+  live.register('note', id, r?.title || r?.content || 'Note', 'notes'); // live update
+  return r;
 }
 export function remove(id: string) {
   db.run('DELETE FROM notes WHERE id=?', [id]);
   db.run('DELETE FROM note_links WHERE note_id=?', [id]);
+  live.remove('note', id); // live prune of the workspace item
   rebuild();
   return true;
 }
