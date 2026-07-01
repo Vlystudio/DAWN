@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { FolderOpen, RefreshCw, Search, Share2, ShieldCheck, FileText } from 'lucide-react';
 import { Button } from '../ui/button';
+import { PageShellPanel } from '../ui/system';
 
 function Toggle({ label, desc, value, onChange }: any) {
   return (
@@ -62,10 +63,12 @@ export default function ObsidianView() {
   }
 
   return (
-    <div className="p-6 max-w-2xl mx-auto h-full overflow-y-auto">
-      <h1 className="text-xl font-bold">Obsidian</h1>
-      <p className="text-sm text-dim mb-4">Use an Obsidian vault as DAWN's long-term memory &amp; knowledge base. Plain local Markdown — Obsidian doesn't need to be running. Nothing is uploaded.</p>
-
+    <PageShellPanel
+      width="max-w-2xl"
+      icon={<FileText size={22} />}
+      title="Obsidian"
+      subtitle="Use an Obsidian vault as DAWN's long-term memory & knowledge base. Plain local Markdown — Obsidian doesn't need to be running. Nothing is uploaded."
+    >
       <div className="glass p-5 mb-4">
         <h3 className="font-semibold mb-3">Vault</h3>
         <div className="flex items-center gap-2 mb-2">
@@ -120,6 +123,6 @@ export default function ObsidianView() {
         <ShieldCheck size={14} className="text-neural-green mt-0.5 shrink-0" />
         Everything stays local. Vault contents are never sent to any cloud. Secrets are redacted unless you explicitly allow them.
       </div>
-    </div>
+    </PageShellPanel>
   );
 }

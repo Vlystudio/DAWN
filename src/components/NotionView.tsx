@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { RefreshCw, Plug, ExternalLink, Search } from 'lucide-react';
 import { Button } from '../ui/button';
+import { PageShellPanel } from '../ui/system';
 
 /** Notion integration page — connect a Notion integration token, sync shared
  *  pages locally, and use them in chat + the brain (mirrors the Obsidian page). */
@@ -52,13 +53,12 @@ export default function NotionView() {
   }
 
   return (
-    <div className="p-6 max-w-2xl mx-auto h-full overflow-y-auto">
-      <h1 className="text-xl font-bold">Notion</h1>
-      <p className="text-sm text-dim mt-1">
-        Connect your Notion workspace. DAWN reads the pages you share with the integration, indexes them <b>locally</b>, and uses them in chat &amp; the brain.
-        It only ever reads from Notion — your local data is never uploaded.
-      </p>
-
+    <PageShellPanel
+      width="max-w-2xl"
+      icon={<Plug size={22} />}
+      title="Notion"
+      subtitle={<>Connect your Notion workspace. DAWN reads the pages you share with the integration, indexes them <b>locally</b>, and uses them in chat &amp; the brain. It only ever reads from Notion — your local data is never uploaded.</>}
+    >
       <div className="glass p-5 mt-4">
         <h3 className="font-semibold mb-2 flex items-center gap-2"><Plug size={16} /> Connection</h3>
         <div className="flex items-center gap-2 text-xs mb-3">
@@ -127,6 +127,6 @@ export default function NotionView() {
           ))}
         </div>
       </div>
-    </div>
+    </PageShellPanel>
   );
 }

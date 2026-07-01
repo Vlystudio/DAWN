@@ -25,6 +25,7 @@ import * as llama from '../llama';
 import tools from '../tools';
 import rag from '../rag';
 import security from '../security/promptSecurity';
+import live from '../workspace/liveHooks';
 import core, { Depth, SourceMode, SourceForPrompt } from './researchCore';
 
 const newId = () => crypto.randomUUID();
@@ -68,6 +69,7 @@ class ResearchService extends EventEmitter {
       'INSERT INTO research_runs (id,question,depth,source_mode,model,status,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)',
       [id, question, depth, sourceMode, model, 'planning', now(), now()]
     );
+    live.register('research_run', id, question, 'research'); // live workspace registration (the user's own question — never fetched web content)
     const control: RunControl = { id, cancelled: false, paused: false, controller: new AbortController(), sourceCount: 0 };
     this.runs.set(id, control);
     logger.info('research', `Run ${id.slice(0, 8)} started: "${question.slice(0, 80)}" (${depth}/${sourceMode})`);

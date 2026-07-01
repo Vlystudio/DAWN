@@ -91,9 +91,9 @@ host* (fills + shrinks + does **not** scroll) while its columns each scroll; a l
 be fixed while exactly the body scrolls. `tests/shellLayout.test.ts` asserts these on the class strings.
 
 **Migrated so far:** Logs → `PageShellLog` (fixed header + scroll box preserved), Model Manager / Model
-Hub / **Model Optimizer** / **Tasks** / **Backup** → `PageShellPanel`, Notes / **Documents** →
-`PageShellSplit`. Others migrate one at a time using the matching variant; System Health tracks the
-remaining list under **Design System → Partial**.
+Hub / **Model Optimizer** / **Tasks** / **Backup** / **Obsidian** / **Notion** → `PageShellPanel`,
+Notes / **Documents** → `PageShellSplit`. Others migrate one at a time using the matching variant;
+System Health tracks the remaining list under **Design System → Partial**.
 
 The full, code-backed status (which screens, which variant, and — for split screens — whether a human
 has visually verified them) lives in **[`docs/UI_MIGRATION_CHECKLIST.md`](UI_MIGRATION_CHECKLIST.md)**,
@@ -170,3 +170,19 @@ are now Notes/Tasks/Documents/Memories/**Knowledge** (Research/Benchmarks/Email 
   No split screen was migrated this batch — the gate is closed while Notes/Documents await a human
   pass. Deferred with reasons: Calendar (inline toolbar header), Skills (split — gated), Security
   (redaction-sensitive), Settings (nested scrollers).
+
+## beta.17 — gate held closed (verification not provided) + two integration panels
+
+- **The split gate stayed CLOSED.** A Notes/Documents verification result was requested but the report
+  came back with the unfilled template placeholder, not a real PASS/FAIL — so neither was marked
+  confirmed and **no split screen was migrated**. The registry helpers now take an optional screens
+  list so the gate *logic* (opens only when every split is `'confirmed'`) is unit-tested against
+  hypothetical inputs **without** ever faking the real registry (`tests/uiMigration.test.ts`).
+- **Obsidian → `PageShellPanel`** and **Notion → `PageShellPanel`** — two clean integration-overview
+  panels. All privacy/redaction copy is preserved (Obsidian's secret-detection + "never uploaded";
+  Notion's `type="password"` token field is untouched and never logged/registered).
+- **Research live workspace hook** — a run registers in the Workspace Graph the moment it starts
+  (label = the user's own question, **never fetched web content**); the completion path already
+  reconciles the final status, and runs are never deleted. Live-hooked sources are now Notes / Tasks /
+  Documents / Memories / Knowledge / Benchmarks / **Research**. Only **Email** stays reconcile-only
+  (a live hook there must never touch credentials or message bodies).

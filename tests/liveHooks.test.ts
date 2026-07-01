@@ -16,9 +16,14 @@ test('Live Workspace Hooks is honestly PARTIAL and lists reconcile-only features
   assert.ok(r.works.some((w) => /name only, no path/i.test(w)), 'knowledge hook stays name-only (no path/content leak)');
   assert.ok(r.works.some((w) => /Benchmarks/i.test(w)), 'Benchmarks is now live-hooked');
   assert.ok(r.works.some((w) => /public model name only/i.test(w)), 'benchmark hook registers the public model name only');
+  assert.ok(r.works.some((w) => /Research/i.test(w)), 'Research is now live-hooked');
+  assert.ok(r.works.some((w) => /never fetched web content/i.test(w)), 'research hook registers the user question, not fetched content');
   assert.ok(r.missing.some((m) => /reconcile-only/i.test(m)), 'must list what is still reconcile-only');
+  assert.ok(r.missing.some((m) => /Email/i.test(m)), 'Email is still reconcile-only');
+  assert.ok(r.missing.some((m) => /credential/i.test(m)), 'and the reason names the credential-safety constraint');
   assert.ok(!r.missing.some((m) => /Knowledge/i.test(m)), 'Knowledge is no longer in the reconcile-only list');
   assert.ok(!r.missing.some((m) => /Benchmark/i.test(m)), 'Benchmarks is no longer in the reconcile-only list');
+  assert.ok(!r.missing.some((m) => /Research/i.test(m)), 'Research is no longer in the reconcile-only list');
 });
 
 test('Knowledge live hook matches the reconcile adapter (no drift, no double-registration)', () => {
@@ -40,6 +45,17 @@ test('Benchmark live hook matches the reconcile adapter (no drift, public label 
   assert.equal(def!.type, 'benchmark', 'live hook type must equal the adapter type (dedupes by type+ref_id)');
   assert.equal(def!.feature, 'benchmark', 'live hook sourceFeature must equal the adapter feature');
   assert.deepEqual(def!.labelCols, ['model_name'], 'label is the public model name — no secrets');
+});
+
+test('Research live hook matches the reconcile adapter (no drift, question label — not fetched content)', () => {
+  // research.ts calls live.register('research_run', id, question, 'research') on start. Runs are never
+  // deleted, and the adapter maps every research_run regardless of status, so live + reconcile agree.
+  const def = ADAPTER_DEFS.find((d) => d.feature === 'research');
+  assert.ok(def, 'a research reconcile adapter exists');
+  assert.equal(def!.type, 'research_run', 'live hook type must equal the adapter type (dedupes by type+ref_id)');
+  assert.equal(def!.feature, 'research', 'live hook sourceFeature must equal the adapter feature');
+  assert.deepEqual(def!.labelCols, ['question'], 'label is the user question (their own input), not fetched web content');
+  assert.ok(!def!.extraWhere, 'no status filter — every run maps, so registering on start never diverges from reconcile');
 });
 
 const DDL = `

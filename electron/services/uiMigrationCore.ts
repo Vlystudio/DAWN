@@ -23,6 +23,8 @@ export const MIGRATED_SCREENS: MigratedScreen[] = [
   { screen: 'Model Optimizer', variant: 'PageShellPanel', verification: 'n/a' },
   { screen: 'Tasks', variant: 'PageShellPanel', verification: 'n/a' },
   { screen: 'Backup', variant: 'PageShellPanel', verification: 'n/a' },
+  { screen: 'Obsidian', variant: 'PageShellPanel', verification: 'n/a' },
+  { screen: 'Notion', variant: 'PageShellPanel', verification: 'n/a' },
   // Split screens — human visual verification is PENDING until the user explicitly confirms them.
   { screen: 'Notes', variant: 'PageShellSplit', verification: 'pending', note: 'first split proof (beta.14)' },
   { screen: 'Documents', variant: 'PageShellSplit', verification: 'pending', note: 'second split (beta.15)' },
@@ -37,17 +39,21 @@ export const NEXT_SAFE_CANDIDATES = [
   'Security overview → PageShellPanel (only if it stays a simple panel and keeps vault redaction)',
 ];
 
-export function splitScreens(): MigratedScreen[] { return MIGRATED_SCREENS.filter((s) => s.variant === 'PageShellSplit'); }
-export function panelScreens(): MigratedScreen[] { return MIGRATED_SCREENS.filter((s) => s.variant === 'PageShellPanel'); }
+// Each helper takes an optional screens list (defaulting to the real registry) so the gate LOGIC can
+// be unit-tested against hypothetical lists (e.g. "all confirmed → gate opens") WITHOUT ever mutating
+// the real registry into a fake pass. Marking a split 'confirmed' only ever happens by an explicit,
+// human-triggered edit to MIGRATED_SCREENS above.
+export function splitScreens(screens: MigratedScreen[] = MIGRATED_SCREENS): MigratedScreen[] { return screens.filter((s) => s.variant === 'PageShellSplit'); }
+export function panelScreens(screens: MigratedScreen[] = MIGRATED_SCREENS): MigratedScreen[] { return screens.filter((s) => s.variant === 'PageShellPanel'); }
 
-/** Split screens still awaiting a human visual check. */
-export function pendingSplitVerification(): string[] {
-  return splitScreens().filter((s) => s.verification === 'pending').map((s) => s.screen);
+/** Split screens still awaiting a human visual check (defaults to the real registry). */
+export function pendingSplitVerification(screens: MigratedScreen[] = MIGRATED_SCREENS): string[] {
+  return splitScreens(screens).filter((s) => s.verification === 'pending').map((s) => s.screen);
 }
 
 /** The gate: only migrate another split screen once every migrated split is human-confirmed. */
-export function canMigrateAnotherSplit(): boolean {
-  return pendingSplitVerification().length === 0;
+export function canMigrateAnotherSplit(screens: MigratedScreen[] = MIGRATED_SCREENS): boolean {
+  return pendingSplitVerification(screens).length === 0;
 }
 
 /** A one-line honest summary of a screen's migration state (used by System Health + docs generation). */
