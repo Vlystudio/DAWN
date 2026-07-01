@@ -65,3 +65,11 @@ run (hit-rate, groundedness, negatives-leaked). So the installed app reports **r
 has no embeddings and no model, so only **keyword** is actually computed; **vector / hybrid / hybrid+rewrite
 / hybrid+HyDE / hybrid+rerank** are marked **unavailable** with a real reason (never a fabricated win). The
 best available strategy is highlighted. On a live index with embeddings, vector/hybrid become comparable.
+
+**Reranker + the eval.** `hybrid+rerank` here refers to the *embedding-similarity* rerank (deterministic,
+offline). The **GGUF cross-encoder** reranker (`reranker.provider = gguf_reranker`) is a live-runtime path:
+it needs a running `llama-server --reranking` + a GGUF reranker model, so it is **not** exercised by this
+deterministic fixture (and the harness never fabricates a cross-encoder score). To evaluate it, point DAWN at
+a live index, enable + start the GGUF reranker in Model Cookbook, and compare retrieval quality with the
+provider set to `embedding_similarity` vs. `gguf_reranker`. A dedicated reranker benchmark suite (measuring
+the cross-encoder's ranking lift over embedding similarity on a labeled set) is a recommended next step.

@@ -96,10 +96,35 @@ chunks. Until one is configured (`rerankerModelPath`), DAWN uses honest **heuris
 
 Cookbook roles now include **query_rewriter / hyde_generator / entailment_verifier** (+ **reranker**). DAWN
 runs one model at a time, so helper slots use the loaded chat model unless the configured helper *is* the
-loaded model (honest fallback; see System Health → Retrieval Helper Models). **Cross-encoder reranker:**
-none ships — `onnxruntime-node` is a heavy/brittle native dependency to bundle, and a GGUF reranker via a
-second `llama-server --reranking` instance is the real future path. Today the real local rerank is
-**embedding-similarity**; System Health reports cross-encoder as **NEEDS SETUP**, never faked.
+loaded model (honest fallback; see System Health → Retrieval Helper Models).
+
+### GGUF reranker (real local cross-encoder) — optional, off by default
+
+DAWN now ships a **real** local cross-encoder path: a **dedicated `llama-server` started with `--reranking`**
+serving a GGUF reranker model (e.g. `bge-reranker-v2-m3`) on its own port (default **8091**), with its own
+bounded queue. Model Cookbook → **Reranker** picks the provider and manages that runtime.
+
+- **Providers:** `disabled`, `embedding_similarity` (the **ready default** — a real local cosine re-order),
+  `heuristic` (hybrid RRF order), `gguf_reranker` (the real cross-encoder).
+- **Honest capability detection.** `gguf_reranker` is only **READY** when the runtime is installed, the model
+  exists, the server is reachable, **and** a synthetic `/rerank` probe returned a well-formed relevance score.
+  Reachability alone is never treated as support. Otherwise the status is a specific reason:
+  `unavailable_runtime_missing` / `unavailable_model_missing` / `unavailable_runtime_not_ready` /
+  `unavailable_runtime_unsupported` (build has no `--reranking`) / `unavailable_api_not_supported`
+  (endpoint 404/501) / `unavailable_server_error` / `unavailable_timeout` / `unavailable_needs_setup`.
+- **Honest fallback.** When `gguf_reranker` is unavailable (or times out / is cancelled mid-query), DAWN falls
+  back to **embedding-similarity** (if embeddings exist) else hybrid order, and records the reason in the
+  retrieval trace. It **never fabricates cross-encoder scores** and never labels embedding similarity as a
+  cross-encoder.
+- **Score semantics.** GGUF scores are `reranker_relevance` with **`relative`** semantics — a real relevance
+  signal, but *not* a calibrated probability. Embedding scores are `cosine_similarity` (`relative`).
+- **Test reranker** uses SYNTHETIC public text only (query *"best fruit for pie"* vs. an apple-pie passage and
+  a car-maintenance passage) — never your private chunks. It reports latency + whether the relevant passage
+  outranked the irrelevant one.
+- **Local-only.** Query + candidate text go only to `127.0.0.1:<port>`; no cloud. Only ids + numeric scores +
+  timings ever leave the reranker (logs/analytics/trace/IPC carry no query/chunk/source text or full paths).
+
+Settings live under `reranker.provider` + `reranker.gguf.*` (see [LOCAL_KNOWLEDGE.md](LOCAL_KNOWLEDGE.md)).
 
 ### Dedicated helper runtime
 

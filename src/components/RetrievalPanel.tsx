@@ -36,7 +36,19 @@ export default function RetrievalPanel() {
     <div className="text-[11px] mb-3 border border-border/60 rounded-lg p-2.5 bg-panel/20">
       <div className="flex items-center gap-1.5 mb-1.5"><Gauge size={12} style={{ color: 'var(--accent)' }} /><span className="text-dim font-medium">Retrieval quality</span></div>
       {rerank ? (
-        <div className="text-faint">Reranker: <span className="text-dim">{rerank.label}</span>{rerank.reason ? <span className="text-faint"> — {rerank.reason}</span> : null}</div>
+        <div className="text-faint">
+          Reranker: <span className="text-dim">{rerank.label}</span>{rerank.reason ? <span className="text-faint"> — {rerank.reason}</span> : null}
+          {rerank.providerStatus ? (
+            <span className="text-faint">
+              {' · '}{rerank.providerStatus.scoreType?.replace('_', ' ')}
+              {rerank.providerStatus.id === 'gguf_reranker' && !rerank.providerStatus.ready
+                ? <span className="text-neural-amber"> · GGUF unavailable ({(rerank.providerStatus.unavailableReason || '').replace(/^unavailable_/, '').replace(/_/g, ' ')}) → falls back to {String(rerank.providerStatus.fallbackProvider || '').replace('_', ' ')}</span>
+                : rerank.providerStatus.id === 'gguf_reranker'
+                  ? <span className="text-neural-green"> · GGUF cross-encoder ready</span>
+                  : null}
+            </span>
+          ) : null}
+        </div>
       ) : null}
 
       {reindex ? (

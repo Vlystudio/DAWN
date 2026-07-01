@@ -84,7 +84,7 @@ export interface MaturitySignals {
   // Retrieval quality (hybrid / rewrite / rerank / verification / evals)
   ragRetrievalMode?: string; ragEmbeddedChunks?: number; ragTotalChunks?: number;
   answerVerificationEnabled?: boolean; queryRewriteEnabled?: boolean; hydeEnabled?: boolean;
-  rerankerEnabled?: boolean; rerankerConfigured?: boolean; rerankMode?: string;
+  rerankerEnabled?: boolean; rerankerConfigured?: boolean; rerankMode?: string; rerankerProviderSummary?: string;
   entailmentEnabled?: boolean;
   ragEvalLastRunAt?: number; ragEvalCases?: number; ragEvalHitRate?: number | null; ragEvalGroundedness?: number | null;
   ragEvalFixtureCount?: number; ragEvalNegativesLeaked?: number; ragEvalBestStrategy?: string | null;
@@ -187,9 +187,10 @@ const EVAL: Record<string, Evaluator> = {
     const missing: string[] = [];
     if (n(s.sourcesNeedReindex) > 0) missing.push(`${n(s.sourcesNeedReindex)} source(s) still use old chunking — reindex in Local Knowledge to upgrade to ${s.chunkStrategyVersion || 'v2'}`);
     const rm = s.rerankMode || 'disabled';
-    if (rm === 'cross_encoder') works.push('Reranker: cross-encoder (local)');
-    else if (rm === 'embedding') works.push('Reranker: embedding-similarity rerank (local, real) — no cross-encoder shipped, never faked');
-    else missing.push('Reranker: heuristic hybrid ranking (RRF + title boost) — enable + embeddings for embedding-similarity rerank; no fake cross-encoder');
+    if (s.rerankerProviderSummary) works.push(`Reranker ${s.rerankerProviderSummary}`);
+    else if (rm === 'cross_encoder') works.push('Reranker: GGUF cross-encoder (real local /rerank)');
+    else if (rm === 'embedding') works.push('Reranker: embedding-similarity rerank (local, real) — GGUF cross-encoder optional, never faked');
+    else missing.push('Reranker: heuristic hybrid ranking (RRF + title boost) — enable + embeddings for embedding-similarity, or set up a GGUF reranker; no fake cross-encoder');
     if (yes(s.queryRewriteEnabled)) works.push(`Query rewriting ON (local model, times out → original)${yes(s.hydeEnabled) ? ' + HyDE vector expansion' : ''}`);
     else missing.push('Query rewriting/HyDE off (optional; real local-model expansion when enabled, honest fallback)');
     let status: MaturityStatus = 'COMPLETE';

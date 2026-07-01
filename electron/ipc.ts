@@ -232,6 +232,27 @@ export function registerIpc() {
     if (res.canceled || !res.filePaths[0]) return { ok: false, canceled: true };
     return helperRuntime.updateSettings({ modelPath: res.filePaths[0] });
   });
+  // GGUF reranker runtime (a real local cross-encoder via a dedicated llama-server --reranking). All safe/redacted.
+  ipcMain.handle('reranker:status', () => require('./services/rag/reranker').default.status());
+  ipcMain.handle('reranker:start', async () => { await require('./services/rag/rerankerRuntime').default.start(); return require('./services/rag/reranker').default.status(); });
+  ipcMain.handle('reranker:stop', async () => { await require('./services/rag/rerankerRuntime').default.stop(); return require('./services/rag/reranker').default.status(); });
+  ipcMain.handle('reranker:restart', async () => { await require('./services/rag/rerankerRuntime').default.restart(); return require('./services/rag/reranker').default.status(); });
+  ipcMain.handle('reranker:test', () => require('./services/rag/rerankerRuntime').default.test());
+  ipcMain.handle('reranker:updateSettings', async (_e, patch) => {
+    const p = patch || {};
+    if (typeof p.provider === 'string') { const s: any = settings.get(); settings.save({ reranker: { ...(s.reranker || {}), provider: p.provider } } as any); }
+    if (p.gguf && typeof p.gguf === 'object') return require('./services/rag/rerankerRuntime').default.updateSettings(p.gguf);
+    return { ok: true, status: require('./services/rag/rerankerRuntime').default.status() };
+  });
+  ipcMain.handle('reranker:queueStatus', () => require('./services/rag/rerankerRuntime').rerankerQueue.status());
+  ipcMain.handle('reranker:cancelJobs', () => require('./services/rag/rerankerRuntime').default.cancelJobs());
+  ipcMain.handle('reranker:clearQueue', () => require('./services/rag/rerankerRuntime').default.clearQueue());
+  ipcMain.handle('reranker:pickModel', async (e) => {
+    const win = BrowserWindow.fromWebContents(e.sender);
+    const res = await dialog.showOpenDialog(win!, { title: 'Select a GGUF reranker model (.gguf)', properties: ['openFile'], filters: [{ name: 'GGUF', extensions: ['gguf'] }] });
+    if (res.canceled || !res.filePaths[0]) return { ok: false, canceled: true };
+    return require('./services/rag/rerankerRuntime').default.updateSettings({ modelPath: res.filePaths[0] });
+  });
   ipcMain.handle('rag:pickFolder', async (e) => {
     const win = BrowserWindow.fromWebContents(e.sender);
     const res = await dialog.showOpenDialog(win!, { title: 'Choose a folder to index', properties: ['openDirectory'] });

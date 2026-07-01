@@ -64,6 +64,18 @@ const api = {
     resetAdaptiveRouting: () => ipcRenderer.invoke('helperRuntime:resetAdaptiveRouting'),
     forceRecoveryProbe: (role: string) => ipcRenderer.invoke('helperRuntime:forceRecoveryProbe', { role }),
   },
+  reranker: {
+    status: () => ipcRenderer.invoke('reranker:status'),
+    start: () => ipcRenderer.invoke('reranker:start'),
+    stop: () => ipcRenderer.invoke('reranker:stop'),
+    restart: () => ipcRenderer.invoke('reranker:restart'),
+    test: () => ipcRenderer.invoke('reranker:test'),
+    updateSettings: (patch: any) => ipcRenderer.invoke('reranker:updateSettings', patch),
+    pickModel: () => ipcRenderer.invoke('reranker:pickModel'),
+    queueStatus: () => ipcRenderer.invoke('reranker:queueStatus'),
+    cancelJobs: () => ipcRenderer.invoke('reranker:cancelJobs'),
+    clearQueue: () => ipcRenderer.invoke('reranker:clearQueue'),
+  },
   setup: {
     complete: (patch: any) => ipcRenderer.invoke('setup:complete', patch),
   },

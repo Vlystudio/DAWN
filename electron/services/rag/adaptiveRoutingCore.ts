@@ -13,12 +13,12 @@ export type AdaptiveDecisionType =
   | 'adaptive_avoid_slow_helper' | 'adaptive_avoid_timeout_prone_helper' | 'adaptive_avoid_failure_prone_helper'
   | 'adaptive_avoid_unavailable_helper' | 'adaptive_recovery_probe';
 
-export type AdaptiveRole = 'query_rewriter' | 'hyde_generator' | 'entailment_verifier';
+export type AdaptiveRole = 'query_rewriter' | 'hyde_generator' | 'entailment_verifier' | 'reranker';
 
 export interface AdaptiveConfig {
   enabled: boolean; minSamples: number; slowP95Ms: number; timeoutRateThreshold: number; failureRateThreshold: number;
   cooldownMs: number; recoveryMinSamples: number; recoveryP95Ms: number; recoveryTimeoutRate: number;
-  applyToRewrite: boolean; applyToHyDE: boolean; applyToEntailment: boolean;
+  applyToRewrite: boolean; applyToHyDE: boolean; applyToEntailment: boolean; applyToReranker?: boolean;
 }
 export interface RoleSummary { jobs: number; p95Ms: number; timeoutRate: number; failureRate: number; health: string }
 export interface WindowSummary { jobs: number; p95Ms: number; timeoutRate: number }
@@ -37,6 +37,7 @@ export function appliesTo(cfg: AdaptiveConfig, role: AdaptiveRole): boolean {
   if (role === 'query_rewriter') return cfg.applyToRewrite !== false;
   if (role === 'hyde_generator') return cfg.applyToHyDE !== false;
   if (role === 'entailment_verifier') return cfg.applyToEntailment !== false;
+  if (role === 'reranker') return cfg.applyToReranker !== false;
   return false;
 }
 

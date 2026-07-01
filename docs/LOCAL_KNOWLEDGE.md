@@ -144,20 +144,51 @@ Measure retrieval + grounding quality with the eval harness — see [EVALS.md](E
 Both use a timeout (`rewriteTimeoutMs`) and **fall back to the original query** on any failure — reported
 honestly as `fallback` in the retrieval trace. Cores: `queryExpansionCore.ts` (tested).
 
-## Reranker (real embedding-similarity path)
+## Reranker (embedding similarity + optional real GGUF cross-encoder)
 
-After hybrid retrieval, an honest rerank stage reorders the top `maxRerankCandidates`:
-- **Embedding similarity** (`rerankerEnabled` + embeddings present) — a real local rerank by cosine.
-- **Heuristic** — hybrid (RRF + title boost) order kept when embeddings are unavailable.
-- **Cross-encoder** — only if a real cross-encoder is loaded (**not shipped → never claimed**). A
-  configured `rerankerModelPath` does *not* fake cross-encoder; DAWN falls to embedding-similarity and
-  says so. Every result keeps a score trace (hybrid / rerank / final). Core: `rerankerCore.ts`.
+After hybrid retrieval, an honest rerank stage reorders the top candidates. The **provider** is chosen in
+Model Cookbook → **Reranker** (`reranker.provider`):
+- **`embedding_similarity`** — the **ready default**: a real local re-order by embedding cosine (runs when
+  the master `rerankerEnabled` toggle is on + embeddings present). Score type `cosine_similarity`.
+- **`heuristic`** — hybrid (RRF + title boost) order kept when embeddings are unavailable.
+- **`disabled`** — no rerank stage; hybrid (RRF) order kept. *(This is the out-of-the-box default:
+  `rerankerEnabled=false`.)*
+- **`gguf_reranker`** — a **REAL local cross-encoder**: a dedicated `llama-server --reranking` serving a GGUF
+  reranker model (default port **8091**) via its `/rerank` endpoint. Score type `reranker_relevance`
+  (`relative` — a real relevance signal, not a calibrated probability). Choosing this provider opts into
+  reranking; the runtime is off until you enable + start it.
+
+**Pipeline for a query:** initial hybrid retrieval → **safety filtering** (blocked/skipped/removed +
+vault/auth/audit excluded, exactly as before) → take the top **`reranker.gguf.topKInput`** (30) safe
+candidates → rerank → return **`reranker.gguf.topKOutput`** (8). The index is never mutated; all chunk
+metadata + citations are preserved through reranking.
+
+**Honest capability + fallback.** `gguf_reranker` is only used when it is truly **READY** — the runtime is
+installed, the model exists, the server is reachable, **and** a `/rerank` probe returned a well-formed
+relevance score. Otherwise the status is a specific reason (`unavailable_runtime_missing` /
+`unavailable_model_missing` / `unavailable_runtime_not_ready` / `unavailable_runtime_unsupported` /
+`unavailable_api_not_supported` / `unavailable_server_error` / `unavailable_timeout` /
+`unavailable_needs_setup`) and DAWN **falls back honestly** to embedding-similarity (else hybrid order),
+recording the reason in the trace. It **never fabricates cross-encoder scores** and never labels embedding
+similarity as a cross-encoder. If a rerank request times out or is superseded by a newer chat turn, it falls
+back the same way. Cores: `rerankerCore.ts` (embedding math), `rerankerProviderCore.ts` (provider status +
+score mapping), `rerankerClientCore.ts` (request/response shaping) — all pure + unit-tested.
+
+**Settings** (`reranker.gguf.*`): `enabled` (false), `modelPath`, `port` (8091), `contextSize` (4096),
+`threads` (0), `gpuLayers` (0), `batchSize` (0), `startupTimeoutMs` (60000), `requestTimeoutMs` (10000),
+`autoStart` (false), `keepWarm` (false), `idleStopMs` (300000), `topKInput` (30), `topKOutput` (8),
+`maxCandidateChars` (4000), `queueCapacity` (16), `maxConcurrency` (1). Each candidate is truncated to
+`maxCandidateChars` before being sent to the LOCAL reranker.
+
+**Test reranker** (Model Cookbook) uses SYNTHETIC public text only — never your private chunks.
 
 ## Retrieval debug (safe)
 
 Expand the grounding line under a chat answer to see the retrieval trace: **mode** (hybrid/vector/
-keyword), **rerank** mode, **rewrite/HyDE** status, and the rewritten query variants — names/modes only,
-never paths or chunk text. Local Knowledge shows the reranker mode + the in-app **RAG eval**.
+keyword), **reranker provider** + input→output counts + run ms + (for GGUF) per-candidate rank changes,
+**rewrite/HyDE** status, and the rewritten query variants — provider names, ids, numbers and modes only,
+**never** query text, paths, or chunk text. Local Knowledge shows the reranker provider + the in-app
+**RAG eval**; System Health surfaces the honest reranker status + unavailable reason + fallback.
 
 ## Chunking v2 (title/heading-aware) + reindex
 

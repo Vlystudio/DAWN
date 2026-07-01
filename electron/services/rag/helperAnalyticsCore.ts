@@ -10,7 +10,7 @@
  */
 
 export type Role = 'query_rewriter' | 'hyde_generator' | 'entailment_verifier' | 'reranker' | 'test';
-export type Provider = 'helper_runtime' | 'chat' | 'lexical' | 'embedding_similarity' | 'none';
+export type Provider = 'helper_runtime' | 'chat' | 'lexical' | 'embedding_similarity' | 'gguf_reranker' | 'none';
 export type Status =
   | 'completed' | 'cancelled' | 'superseded' | 'timeout' | 'runtime_stopped' | 'app_quitting'
   | 'unavailable' | 'fallback_used' | 'failed' | 'skipped';

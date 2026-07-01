@@ -4,6 +4,7 @@ import { PageShell, StatusBadge, LoadingState, ErrorState, EmptyState, Button, D
 import { resolveStatus } from '../lib/statusMap';
 import VisionSetupPanel from './VisionSetupPanel';
 import HelperRuntimePanel from './HelperRuntimePanel';
+import RerankerRuntimePanel from './RerankerRuntimePanel';
 
 /**
  * ModelCookbookView — "which installed model is best for what, and will it run here." Pulls real data
@@ -51,6 +52,9 @@ export default function ModelCookbookView({ onNav }: { onNav?: (view: string) =>
 
             {/* Dedicated helper runtime (second llama-server for retrieval helper tasks) */}
             <HelperRuntimePanel />
+
+            {/* Reranker provider + optional real local GGUF cross-encoder runtime */}
+            <RerankerRuntimePanel />
 
             {/* best-for-role cards */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-5">

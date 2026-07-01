@@ -56,7 +56,18 @@ export function gatherSignals(): MaturitySignals {
     if (est.hasRun && est.summary) { const su = est.summary; ragEvalLastRunAt = su.ranAt || 0; ragEvalCases = su.cases || 0; ragEvalHitRate = su.retrievalHitRate ?? null; ragEvalGroundedness = su.meanGroundedness ?? null; ragEvalNegativesLeaked = su.negativesLeaked || 0; }
   } catch { /* */ }
   let rerankMode = 'disabled';
-  try { rerankMode = require('./rag/reranker').default.status().mode || 'disabled'; } catch { /* */ }
+  let rerankerProviderSummary = '';
+  try {
+    const rs = require('./rag/reranker').default.status();
+    rerankMode = rs.mode || 'disabled';
+    const ps = rs.providerStatus;
+    if (ps) {
+      if (ps.id === 'gguf_reranker') rerankerProviderSummary = ps.ready
+        ? 'GGUF reranker READY (real local cross-encoder via llama-server /rerank)'
+        : `GGUF reranker selected but ${String(ps.unavailableReason || '').replace(/^unavailable_/, '').replace(/_/g, ' ')} — falls back to ${String(ps.fallbackProvider || '').replace('_', ' ')} (never fakes cross-encoder scores)`;
+      else rerankerProviderSummary = `provider: ${String(ps.id).replace('_', ' ')} (${ps.scoreType.replace('_', ' ')}); GGUF cross-encoder available on setup`;
+    }
+  } catch { /* */ }
   let chunkStrategyVersion = 'v2', sourcesNeedReindex = 0;
   try { const info = require('./rag').default.reindexInfo(); chunkStrategyVersion = info.strategyVersion; sourcesNeedReindex = info.needReindex; } catch { /* */ }
   const helperCfg = (() => { const h: any = s.helperModels || {}; return { configured: ['queryRewriteModel', 'hydeModel', 'entailmentModel', 'rerankerModel'].filter((k) => h[k]).length, fallback: h.preferChatModelFallback !== false }; })();
@@ -123,7 +134,7 @@ export function gatherSignals(): MaturitySignals {
     answerVerificationEnabled: s.answerVerificationEnabled !== false,
     entailmentEnabled: !!s.entailmentEnabled,
     queryRewriteEnabled: !!s.queryRewriteEnabled, hydeEnabled: !!s.hydeEnabled,
-    rerankerEnabled: !!s.rerankerEnabled, rerankerConfigured: !!(s.rerankerEnabled && s.rerankerModelPath), rerankMode,
+    rerankerEnabled: !!s.rerankerEnabled, rerankerConfigured: !!(s.rerankerEnabled && s.rerankerModelPath), rerankMode, rerankerProviderSummary,
     ragEvalLastRunAt, ragEvalCases, ragEvalHitRate, ragEvalGroundedness, ragEvalFixtureCount, ragEvalNegativesLeaked, ragEvalBestStrategy,
     chunkStrategyVersion, sourcesNeedReindex,
     helperModelsConfigured: helperCfg.configured, helperChatFallback: helperCfg.fallback,

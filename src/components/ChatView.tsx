@@ -338,10 +338,18 @@ export default function ChatView({
                         <div className="mt-1.5 border-l-2 border-border pl-2 space-y-1">
                           {retrievalTrace ? (
                             <div className="text-faint">Retrieval: <span className="text-dim">{retrievalTrace.retrievalMode}</span>
-                              {retrievalTrace.rerankMode && retrievalTrace.rerankMode !== 'disabled' ? <span> · rerank {retrievalTrace.rerankMode}</span> : null}
+                              {retrievalTrace.rerankerProvider && retrievalTrace.rerankerProvider !== 'disabled'
+                                ? <span> · rerank <span className="text-dim">{String(retrievalTrace.rerankerProvider).replace('_', ' ')}</span>
+                                    {retrievalTrace.rerankerUsedFallback ? <span className="text-neural-amber"> (fallback: {String(retrievalTrace.rerankerUnavailableReason || '').replace(/^unavailable_/, '').replace(/_/g, ' ')})</span> : null}
+                                    {typeof retrievalTrace.rerankerInputCount === 'number' && retrievalTrace.rerankerInputCount > 0 ? <span className="text-faint"> · {retrievalTrace.rerankerInputCount}→{retrievalTrace.rerankerOutputCount}</span> : null}
+                                    {retrievalTrace.rerankerRunMs ? <span className="text-faint"> · {retrievalTrace.rerankerRunMs}ms</span> : null}
+                                  </span>
+                                : retrievalTrace.rerankMode && retrievalTrace.rerankMode !== 'disabled' ? <span> · rerank {retrievalTrace.rerankMode}</span> : null}
                               {retrievalTrace.rewriteMode && retrievalTrace.rewriteMode !== 'disabled' ? <span> · rewrite {retrievalTrace.rewriteMode}</span> : null}
                               {retrievalTrace.hydeMode && retrievalTrace.hydeMode !== 'disabled' ? <span> · HyDE {retrievalTrace.hydeMode}</span> : null}
                               {retrievalTrace.rewriteVariants?.length ? <span className="text-faint"> · variants: {retrievalTrace.rewriteVariants.slice(0, 3).join(' / ')}</span> : null}
+                              {retrievalTrace.rerankerCandidates?.length && retrievalTrace.rerankerProvider === 'gguf_reranker'
+                                ? <span className="text-faint"> · rank Δ: {retrievalTrace.rerankerCandidates.slice(0, 4).map((c: any) => `${c.originalRank}→${c.rerankedRank}`).join(', ')}</span> : null}
                             </div>
                           ) : null}
                           <div className="text-faint">Grounding: {verification.mode === 'entailment' ? 'local-model entailment (falls back to lexical per claim)' : 'local lexical-overlap check'} against your retrieved sources — not an external judge. Groundedness {Math.round((verification.groundedness || 0) * 100)}%.</div>

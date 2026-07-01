@@ -25,7 +25,10 @@ if (!gotLock) {
       win.focus();
     }
   });
-  app.whenReady().then(bootstrap).then(() => { try { require('./services/rag/helperRuntime').default.maybeAutoStart(); } catch { /* helper runtime is optional */ } });
+  app.whenReady().then(bootstrap).then(() => {
+    try { require('./services/rag/helperRuntime').default.maybeAutoStart(); } catch { /* helper runtime is optional */ }
+    try { require('./services/rag/rerankerRuntime').default.maybeAutoStart(); } catch { /* reranker runtime is optional */ }
+  });
 }
 
 async function bootstrap() {
@@ -213,6 +216,12 @@ app.on('before-quit', () => {
   try {
     require('./services/rag/helperQueue').default.clear('app_quitting'); // cancel in-flight helper jobs
     require('./services/rag/helperRuntime').default.stop();
+  } catch {
+    /* ignore */
+  }
+  try {
+    require('./services/rag/rerankerRuntime').rerankerQueue.clear('app_quitting'); // cancel in-flight rerank jobs
+    require('./services/rag/rerankerRuntime').default.stop();
   } catch {
     /* ignore */
   }

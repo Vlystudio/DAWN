@@ -9,8 +9,11 @@ import embeddings from './embeddings';
 import hybridCore from './rag/hybridRetrievalCore';
 import rerankerCore from './rag/rerankerCore';
 import reranker from './rag/reranker';
+import rerankerProviderCore from './rag/rerankerProviderCore';
+import rerankerRuntime from './rag/rerankerRuntime';
 import queryExpansion from './rag/queryExpansion';
 import adaptiveRouting from './rag/adaptiveRouting';
+import analytics from './rag/helperAnalyticsCore';
 import parsers from './parsers';
 import safety from './safety';
 import guard from './knowledge/knowledgeGuardCore';
@@ -262,20 +265,84 @@ class Rag extends EventEmitter {
     });
     const embeddingsAvailable = cands.some((c) => typeof c.vectorScore === 'number');
     const maxCand = Number(s.maxRerankCandidates) > 0 ? Number(s.maxRerankCandidates) : 20;
+    const topKInput = Number(s.reranker?.gguf?.topKInput) > 0 ? Number(s.reranker.gguf.topKInput) : 30;
+    const topKOutput = Number(s.reranker?.gguf?.topKOutput) > 0 ? Number(s.reranker.gguf.topKOutput) : 8;
 
     // Hybrid retrieval → then an honest rerank stage over the top candidates.
-    const { mode, results } = hybridCore.hybridRank(cands, keywordQuery, { topK: Math.max(k, maxCand) });
+    const { mode, results } = hybridCore.hybridRank(cands, keywordQuery, { topK: Math.max(k, maxCand, topKInput) });
     const scoreById = new Map(results.map((r) => [r.id, r]));
-    const rr = reranker.decide(embeddingsAvailable);
-    const reranked = rerankerCore.rerank(
-      results.map((r) => ({ id: r.id, hybridScore: r.score, vectorScore: r.vectorScore })), rr.mode, maxCand
-    ).slice(0, k);
+    const origRankById = new Map(results.map((r, i) => [r.id, i]));
+
+    // Rerank stage: the honest plan chooses the provider that actually runs (GGUF cross-encoder if ready,
+    // else embedding-similarity, else hybrid order). GGUF is a REAL local /rerank call; it never fakes scores.
+    const pl = reranker.plan(embeddingsAvailable);
+    let effProvider: string = pl.provider;
+    let rerankAdaptive: any = null;
+    // OPTIONAL adaptive routing: steer away from a slow/timeout/failure-prone GGUF reranker to embedding.
+    if (pl.provider === 'gguf_reranker' && adaptiveRouting.enabled() && adaptiveRouting.appliesTo('reranker' as any)) {
+      rerankAdaptive = adaptiveRouting.decisionFor('reranker' as any);
+      if (!rerankAdaptive.preferHelper) effProvider = embeddingsAvailable ? 'embedding_similarity' : 'heuristic';
+    }
+
+    const fallbackProvider = pl.provider === 'gguf_reranker' ? (embeddingsAvailable ? 'embedding_similarity' : 'heuristic') : (pl.provider === 'embedding_similarity' ? 'heuristic' : 'disabled');
+    let rerankerStatusLabel = 'READY';
+    let rerankerUnavailableReason: string = pl.unavailableReason || 'none';
+    let usedFallback = pl.usedFallback || (pl.provider === 'gguf_reranker' && effProvider !== 'gguf_reranker');
+    let rerankQueueWaitMs = 0, rerankRunMs = 0, rerankInputCount = 0, rerankOutputCount = 0, rerankCancelled = false, rerankTimeout = false;
+    let rankedRows: { id: string; rerankScore: number | null; finalScore: number; originalRank: number; rerankedRank: number }[] = [];
+
+    if (effProvider === 'gguf_reranker') {
+      const head = results.slice(0, topKInput);
+      const rerankCands = head.map((r) => ({ id: r.id, text: String(byId.get(r.id)?.content || '') }));
+      const gen = rerankerRuntime.beginGeneration(); // generation-aware: a newer retrieve supersedes this one
+      const run = await rerankerRuntime.rerank(query, rerankCands, { generation: gen });
+      rerankQueueWaitMs = run.queueWaitMs; rerankRunMs = run.runMs; rerankInputCount = run.inputCount;
+      rerankCancelled = run.cancelled; rerankTimeout = run.timeout;
+      if (run.ok && run.scores) {
+        const applied = rerankerProviderCore.applyRerank(run.ids, run.scores);
+        rankedRows = applied.map((a) => ({ id: a.id, rerankScore: a.score, finalScore: typeof a.score === 'number' ? a.score : (scoreById.get(a.id)?.score ?? 0), originalRank: a.originalRank, rerankedRank: a.rerankedRank }));
+        rerankOutputCount = Math.min(rankedRows.length, topKOutput);
+        rerankerStatusLabel = 'READY';
+        try { analytics.record({ role: 'reranker', provider: 'gguf_reranker', status: 'completed', queueWaitMs: run.queueWaitMs, runMs: run.runMs, reason: run.lengthMismatch ? 'length_mismatch' : undefined, generation: gen }); } catch { /* analytics must never break retrieval */ }
+      } else {
+        // Honest fallback: GGUF reranker failed/cancelled/timed out → embedding-similarity (or hybrid order).
+        const st = run.timeout ? 'timeout' : run.cancelled ? 'cancelled' : 'failed';
+        try { analytics.record({ role: 'reranker', provider: 'gguf_reranker', status: st as any, queueWaitMs: run.queueWaitMs, runMs: run.runMs, reason: run.reason, generation: gen }); } catch { /* */ }
+        usedFallback = true;
+        rerankerUnavailableReason = run.timeout ? 'unavailable_timeout' : (reranker.providerStatus(embeddingsAvailable).unavailableReason || 'unavailable_server_error');
+        rerankerStatusLabel = 'UNAVAILABLE';
+        effProvider = embeddingsAvailable ? 'embedding_similarity' : 'heuristic';
+      }
+    }
+
+    if (effProvider !== 'gguf_reranker') {
+      // Embedding-similarity / heuristic / disabled — the pure, local rerank math over the candidates.
+      const legacyMode = effProvider === 'embedding_similarity' ? 'embedding' : effProvider === 'heuristic' ? 'heuristic' : 'disabled';
+      const rr2 = rerankerCore.rerank(results.map((r) => ({ id: r.id, hybridScore: r.score, vectorScore: r.vectorScore })), legacyMode as any, Math.max(maxCand, topKInput));
+      rankedRows = rr2.map((x, i) => ({ id: x.id, rerankScore: x.rerankScore, finalScore: x.finalScore, originalRank: origRankById.get(x.id) ?? i, rerankedRank: i }));
+      rerankInputCount = rerankInputCount || Math.min(results.length, Math.max(maxCand, topKInput));
+      rerankOutputCount = Math.min(rankedRows.length, topKOutput);
+      if (legacyMode === 'disabled') rerankerStatusLabel = usedFallback ? rerankerStatusLabel : 'DISABLED';
+    }
+
+    const reranked = rankedRows.slice(0, k);
+    const scoreType: string = effProvider === 'gguf_reranker' ? 'reranker_relevance' : effProvider === 'embedding_similarity' ? 'cosine_similarity' : effProvider === 'heuristic' ? 'heuristic' : 'none';
+    const rerankLegacyMode = effProvider === 'gguf_reranker' ? 'cross_encoder' : effProvider === 'embedding_similarity' ? 'embedding' : effProvider === 'heuristic' ? 'heuristic' : 'disabled';
 
     this.lastTrace = {
       retrievalMode: mode, rewriteMode: rw.mode, rewriteProvider: rw.provider, rewriteVariants: rw.variants,
       rewriteStatus: rw.status, rewriteQueueMs: rw.queueWaitMs, rewriteRunMs: rw.runMs,
       hydeMode: hy.mode, hydeProvider: hy.provider, hydeStatus: hy.status,
-      rerankMode: rr.mode, rerankReason: rr.reason,
+      rerankMode: rerankLegacyMode, rerankReason: pl.reason,
+      // Reranker provider (safe: provider ids + numeric scores/timings only — no query/chunk/source text).
+      rerankerProvider: effProvider, rerankerSelected: pl.selected, rerankerStatus: rerankerStatusLabel,
+      rerankerUnavailableReason, rerankerFallbackProvider: fallbackProvider, rerankerUsedFallback: usedFallback,
+      rerankerQueueWaitMs: rerankQueueWaitMs, rerankerRunMs: rerankRunMs,
+      rerankerInputCount: rerankInputCount, rerankerOutputCount: rerankOutputCount,
+      rerankerCancelled: rerankCancelled, rerankerTimeout: rerankTimeout,
+      rerankerScoresSummary: rerankerProviderCore.scoresSummary(rankedRows.map((r) => ({ id: r.id, score: r.rerankScore }))),
+      rerankerCandidates: reranked.map((r) => ({ chunkId: r.id, originalRank: r.originalRank, rerankedRank: r.rerankedRank, score: r.rerankScore, scoreType, provider: effProvider })),
+      rerankerAdaptive: rerankAdaptive || null,
       // Adaptive routing (safe: decision type + evidence numbers only, no prompt/response/chunk text).
       adaptiveRoutingEnabled: adaptiveRouting.enabled(), rewriteAdaptive: rw.adaptive || null, hydeAdaptive: hy.adaptive || null,
     };
@@ -287,7 +354,7 @@ class Rag extends EventEmitter {
         name: r.name, path: r.path, chunkIndex: r.chunk_index, content: r.content,
         score: Number((res.finalScore ?? meta.score).toFixed(3)), retrievalMode: mode,
         vectorRank: meta.vectorRank, keywordRank: meta.keywordRank, keywordScore: meta.keywordScore,
-        rerankMode: rr.mode, rerankScore: res.rerankScore, stale: meta.stale,
+        rerankMode: rerankLegacyMode, rerankScore: res.rerankScore, rerankProvider: effProvider, stale: meta.stale,
         // Honest citation: chunk-level (we have a chunk index), file name only, page/section NOT faked.
         citation: citationCore.buildCitation({ name: r.name, path: r.path, sourceType: 'file', chunkIndex: r.chunk_index, retrievalMode: mode }),
       };

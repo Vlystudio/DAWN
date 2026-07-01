@@ -8,15 +8,15 @@ import settings from '../settings';
 import analytics from './helperAnalyticsCore';
 import core, { AdaptiveConfig, AdaptiveRole, RoleState, AdaptiveDecision, DEFAULT_STATE } from './adaptiveRoutingCore';
 
-const ROLES: AdaptiveRole[] = ['query_rewriter', 'hyde_generator', 'entailment_verifier'];
+const ROLES: AdaptiveRole[] = ['query_rewriter', 'hyde_generator', 'entailment_verifier', 'reranker'];
 const num = (v: any, d: number) => (typeof v === 'number' && isFinite(v) ? v : d);
 
 const state: Record<AdaptiveRole, RoleState> = {
-  query_rewriter: { ...DEFAULT_STATE }, hyde_generator: { ...DEFAULT_STATE }, entailment_verifier: { ...DEFAULT_STATE },
+  query_rewriter: { ...DEFAULT_STATE }, hyde_generator: { ...DEFAULT_STATE }, entailment_verifier: { ...DEFAULT_STATE }, reranker: { ...DEFAULT_STATE },
 };
-const lastDecision: Record<AdaptiveRole, AdaptiveDecision | null> = { query_rewriter: null, hyde_generator: null, entailment_verifier: null };
-const routedAwayAtDisplay: Record<AdaptiveRole, number> = { query_rewriter: 0, hyde_generator: 0, entailment_verifier: 0 };
-const recoveredAtDisplay: Record<AdaptiveRole, number> = { query_rewriter: 0, hyde_generator: 0, entailment_verifier: 0 };
+const lastDecision: Record<AdaptiveRole, AdaptiveDecision | null> = { query_rewriter: null, hyde_generator: null, entailment_verifier: null, reranker: null };
+const routedAwayAtDisplay: Record<AdaptiveRole, number> = { query_rewriter: 0, hyde_generator: 0, entailment_verifier: 0, reranker: 0 };
+const recoveredAtDisplay: Record<AdaptiveRole, number> = { query_rewriter: 0, hyde_generator: 0, entailment_verifier: 0, reranker: 0 };
 
 export function cfg(): AdaptiveConfig {
   const a: any = (settings.get() as any).helperModels?.adaptiveRouting || {};
@@ -27,6 +27,7 @@ export function cfg(): AdaptiveConfig {
     cooldownMs: num(a.cooldownMs, 300000), recoveryMinSamples: num(a.recoveryMinSamples, 8),
     recoveryP95Ms: num(a.recoveryP95Ms, 2000), recoveryTimeoutRate: num(a.recoveryTimeoutRate, 0.10),
     applyToRewrite: a.applyToRewrite !== false, applyToHyDE: a.applyToHyDE !== false, applyToEntailment: a.applyToEntailment !== false,
+    applyToReranker: a.applyToReranker !== false,
   };
 }
 
