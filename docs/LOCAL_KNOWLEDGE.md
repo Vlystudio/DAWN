@@ -182,6 +182,17 @@ score mapping), `rerankerClientCore.ts` (request/response shaping) — all pure 
 
 **Test reranker** (Model Cookbook) uses SYNTHETIC public text only — never your private chunks.
 
+## Live-index eval + reranker benchmark
+
+Local Knowledge → *Live-index eval* evaluates DAWN's real retrieval strategies against **your actual index**
+and benchmarks whether the GGUF reranker improves ranking over embedding-similarity + baseline hybrid. It
+shows a **preflight** (what can run + why each strategy is unavailable), a **per-strategy table**
+(hit-rate/MRR/top-K/nDCG/latency for 12 strategies), and a **reranker comparison** (baseline vs embedding vs
+GGUF with expected-id rank movement + lift). Query sets: user-provided, metadata-generated (titles/headings/
+basenames — never chunk text), or a locally-saved golden set. It **never mutates your index**, never fakes a
+"best" strategy or GGUF lift, and stores/exports **ids + metrics only** (no chunk/source/prompt text). See
+[EVALS.md](EVALS.md).
+
 ## Retrieval debug (safe)
 
 Expand the grounding line under a chat answer to see the retrieval trace: **mode** (hybrid/vector/

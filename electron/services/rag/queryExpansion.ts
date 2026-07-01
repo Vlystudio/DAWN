@@ -73,4 +73,29 @@ export async function hyde(query: string): Promise<HydeResult> {
   return t ? { text: t, mode: 'hyde', ...meta } : { text: null, mode: 'fallback', ...meta, reason: 'empty' };
 }
 
-export default { rewrite, hyde };
+/**
+ * Eval-only variants: run rewrite / HyDE regardless of the feature toggle so the LIVE-INDEX eval can
+ * measure those strategies honestly (routing helper_runtime → chat → skip exactly as production would).
+ * They do NOT record helper analytics, so an explicit eval run never pollutes adaptive-routing stats.
+ * Raw model output is not logged; only the parsed variants / hypothetical doc are returned.
+ */
+export async function rewriteForEval(query: string): Promise<RewriteResult> {
+  const s: any = settings.get();
+  const base = { queries: [query], variants: [] as string[], keywords: [] as string[] };
+  const r = await routeHelper('query_rewrite', core.buildRewritePrompt(query, s.maxRewriteQueries || 2), { maxTokens: 120 });
+  const meta = { provider: r.provider, reason: r.reason, status: r.status, queueWaitMs: r.queueWaitMs, runMs: r.runMs, adaptive: r.adaptive };
+  if (!r.ok) return { ...base, mode: 'fallback', ...meta };
+  const parsed = core.parseRewrite(r.text || '', query, s.maxRewriteQueries || 2);
+  if (!parsed.variants.length) return { ...base, mode: 'fallback', ...meta, reason: 'no usable variants' };
+  return { queries: [query, ...parsed.variants], variants: parsed.variants, keywords: parsed.keywords, mode: 'rewritten', ...meta };
+}
+
+export async function hydeForEval(query: string): Promise<HydeResult> {
+  const r = await routeHelper('hyde', core.buildHydePrompt(query), { maxTokens: 160 });
+  const meta = { provider: r.provider, reason: r.reason, status: r.status, queueWaitMs: r.queueWaitMs, runMs: r.runMs, adaptive: r.adaptive };
+  if (!r.ok) return { text: null, mode: 'fallback', ...meta };
+  const t = core.sanitizeHyde(r.text || '');
+  return t ? { text: t, mode: 'hyde', ...meta } : { text: null, mode: 'fallback', ...meta, reason: 'empty' };
+}
+
+export default { rewrite, hyde, rewriteForEval, hydeForEval };

@@ -57,6 +57,8 @@
     "electron/services/rag/adaptiveRoutingCore.ts",
     "electron/services/rag/rerankerProviderCore.ts",
     "electron/services/rag/rerankerClientCore.ts",
+    "electron/services/rag/liveEvalCore.ts",
+    "electron/services/rag/livePreflightCore.ts",
     "electron/services/knowledge/chunkingCore.ts",
     "tests/agentos.test.ts",
     "tests/agentosRuntime.test.ts",
@@ -101,6 +103,7 @@
     "tests/helperQueue.test.ts",
     "tests/helperAnalytics.test.ts",
     "tests/adaptiveRouting.test.ts",
-    "tests/reranker.test.ts"
+    "tests/reranker.test.ts",
+    "tests/liveEval.test.ts"
   ]
 }

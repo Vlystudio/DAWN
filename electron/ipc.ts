@@ -199,6 +199,22 @@ export function registerIpc() {
   ipcMain.handle('rag:rerankerStatus', () => require('./services/rag/reranker').default.status());
   ipcMain.handle('rag:evalStatus', () => require('./services/rag/ragEval').default.status());
   ipcMain.handle('rag:runEval', () => require('./services/rag/ragEval').default.run());
+  // Live-index eval + reranker benchmark (real strategies over the user's index; safe/redacted results).
+  ipcMain.handle('rag:eval:preflightLive', () => require('./services/rag/liveEval').default.preflightLive());
+  ipcMain.handle('rag:eval:live', (_e, opts) => require('./services/rag/liveEval').default.runLive(opts || {}));
+  ipcMain.handle('rag:eval:rerankerBenchmark', (_e, opts) => require('./services/rag/liveEval').default.runRerankerBenchmark(opts || {}));
+  ipcMain.handle('rag:eval:liveStatus', () => require('./services/rag/liveEval').default.status());
+  ipcMain.handle('rag:eval:saveGoldenItem', (_e, item) => require('./services/rag/liveEval').default.saveGoldenItem(item || {}));
+  ipcMain.handle('rag:eval:listGoldenItems', () => require('./services/rag/liveEval').default.listGoldenItems());
+  ipcMain.handle('rag:eval:deleteGoldenItem', (_e, { id }) => require('./services/rag/liveEval').default.deleteGoldenItem(id));
+  ipcMain.handle('rag:eval:clearLiveResult', () => require('./services/rag/liveEval').default.clearLive());
+  ipcMain.handle('rag:eval:exportSafeEval', async (e) => {
+    const win = BrowserWindow.fromWebContents(e.sender);
+    const res = await dialog.showSaveDialog(win!, { title: 'Export safe eval (ids + metrics only)', defaultPath: `dawn-eval-${new Date().toISOString().slice(0, 10)}.json`, filters: [{ name: 'JSON', extensions: ['json'] }] });
+    if (!res.filePath) return { ok: false, canceled: true };
+    fs.writeFileSync(res.filePath, JSON.stringify(require('./services/rag/liveEval').default.safeExport(), null, 2));
+    return { ok: true, path: require('path').basename(res.filePath) };
+  });
   ipcMain.handle('rag:reindexInfo', () => rag.reindexInfo());
   ipcMain.handle('rag:reindexOutdated', () => rag.reindexOutdated());
   // Dedicated helper runtime (a second llama-server for helper tasks)
