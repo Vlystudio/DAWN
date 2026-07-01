@@ -3,6 +3,7 @@ import {
   StickyNote, Plus, Trash2, Pin, Archive, Search, Sparkles, ListPlus, Link2, Loader2, Check, X,
 } from 'lucide-react';
 import { useBrainStore } from '../state/brainStore';
+import { PageShellSplit } from '../ui/system';
 
 /** Notes — quick notes with tags, pin/archive, search, and AI helpers (summarize,
  *  convert-to-task, smart-link to memories/projects/conversations). Each note is a brain node. */
@@ -58,8 +59,12 @@ export default function NotesView() {
   async function unlink(linkId: string) { await window.dawn.notes.unlink(linkId); if (id) open(id); }
 
   return (
-    <div className="h-full flex">
-      <div className="w-60 shrink-0 border-r border-border bg-bg/40 flex flex-col">
+    <PageShellSplit
+      icon={<StickyNote size={22} />}
+      title="Notes"
+      subtitle="Quick notes — DAWN can summarize, convert to a task, or smart-link them."
+      sidebarWidth="w-60"
+      sidebar={<>
         <div className="p-3 space-y-2">
           <button onClick={create} className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold border" style={{ color: 'var(--accent)', borderColor: 'rgba(var(--accent-rgb),0.5)', background: 'rgba(var(--accent-rgb),0.1)' }}><Plus size={15} /> New note</button>
           <div className="relative"><Search size={13} className="absolute left-2.5 top-2.5 text-faint" /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search…" className="w-full bg-bg border border-border rounded-lg pl-8 pr-2 py-1.5 text-xs outline-none" /></div>
@@ -78,9 +83,8 @@ export default function NotesView() {
           ))}
           {!notes.length ? <div className="text-[11px] text-faint text-center py-8 px-3">No notes.<br />Jot something down.</div> : null}
         </div>
-      </div>
-
-      <div className="flex-1 min-w-0 flex flex-col">
+      </>}
+    >
         {!id ? (
           <div className="flex-1 grid place-items-center text-center p-8"><div><StickyNote size={40} className="mx-auto text-faint mb-3" /><div className="text-lg font-semibold">Notes</div><p className="text-sm text-dim mt-1 max-w-sm">Capture quick thoughts. DAWN can summarize a note, turn it into a task, or link it to related memories and conversations.</p></div></div>
         ) : (
@@ -118,8 +122,7 @@ export default function NotesView() {
             </div>
           </>
         )}
-      </div>
-    </div>
+    </PageShellSplit>
   );
 }
 

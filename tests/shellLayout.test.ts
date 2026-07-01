@@ -6,19 +6,23 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert';
-import sl, { SHELL, isScrollable, canShrink, hasIndependentScroll, isCleanFlexBody } from '../src/ui/shellLayout';
+import sl, { SHELL, isScrollable, canShrink, hasIndependentScroll, isCleanFlexBody, isFlexHost } from '../src/ui/shellLayout';
 
 test('simple page + panel scroll at the top level', () => {
   assert.ok(isScrollable(SHELL.page));
   assert.ok(isScrollable(SHELL.panelRoot));
 });
 
-test('split shell: header is fixed, body is a clean flex host, columns scroll independently', () => {
+test('split shell: fixed header, clean flex body, columns are flex hosts (no double-scroll)', () => {
   assert.ok(!isScrollable(SHELL.splitHeader), 'split header must be fixed (not scroll)');
   assert.ok(SHELL.splitHeader.includes('shrink-0'), 'split header must not shrink');
   assert.ok(isCleanFlexBody(SHELL.splitBody), 'split body fills + shrinks + does NOT scroll (no double-scroll)');
-  assert.ok(hasIndependentScroll(SHELL.splitSidebar, SHELL.splitMain), 'sidebar + main scroll independently');
-  assert.ok(canShrink(SHELL.splitMain) && canShrink(SHELL.splitSidebar), 'columns must min-h-0 to scroll');
+  // columns are flex hosts: they fill/shrink and are flex-col, but do NOT scroll themselves —
+  // the caller's content (an inner flex-1 overflow-y-auto) scrolls, so a fixed sub-header stays fixed.
+  assert.ok(isFlexHost(SHELL.splitSidebar), 'sidebar column is a flex host (content scrolls, not the column)');
+  assert.ok(isFlexHost(SHELL.splitMain), 'main column is a flex host');
+  assert.ok(hasIndependentScroll(SHELL.splitSidebar, SHELL.splitMain), 'columns host independent scroll regions');
+  assert.ok(isScrollable(SHELL.colScroll) && canShrink(SHELL.colScroll), 'colScroll is the drop-in scroll region for flowing content');
 });
 
 test('log shell: header fixed, body is the single scroll box (preserves LogsView behaviour)', () => {

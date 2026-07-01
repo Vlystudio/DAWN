@@ -93,3 +93,26 @@ be fixed while exactly the body scrolls. `tests/shellLayout.test.ts` asserts the
 **Migrated so far:** Logs → `PageShellLog` (fixed header + scroll box preserved), Model Manager →
 `PageShellPanel`. Others migrate one at a time using the matching variant; System Health tracks the
 remaining list under **Design System → Partial**.
+
+## PageShellSplit proof pattern (Notes)
+
+**Notes** is the first master–detail screen migrated to `PageShellSplit` (beta.14). Pattern:
+
+- `sidebar={<>…fixed buttons…<div className="flex-1 overflow-y-auto">…list…</div></>}` — the sidebar
+  column is a **flex host**, so its fixed "New note"/search stay put while the list scrolls inside.
+- `children` = the detail pane (empty state or editor) — the main column is a flex host, so the
+  editor's action bar stays fixed while the textarea/links scroll.
+- A consistent page header (title + subtitle) is added on top; **no double-scroll**, columns scroll
+  independently, live workspace hooks for Notes are unchanged (only the view wrapper changed).
+
+### Human visual-verification checklist (Notes, after installing beta.14)
+
+1. Notes opens from the sidebar. 2. Master list is visible on the left. 3. Detail pane on the right.
+4. Clicking a note fills the detail pane. 5. **New note** works. 6. Editing title/tags/body works.
+7. Deleting a note (trash on hover) works. 8. The list scrolls independently. 9. The editor body
+scrolls independently. 10. The page header + New-note/search stay fixed. 11. Empty state ("No notes")
+looks right. 12. No clipped content, no overlap, no double-scroll. 13. Creating/deleting a note updates
+the **Workspace Graph** (live hook). If any fail, revert `NotesView` to its pre-beta.14 layout.
+
+**Migrated this batch:** Model Hub (`PageShellPanel`), Notes (`PageShellSplit`, the one split proof).
+Only one split screen was migrated on purpose — verify Notes before rolling the pattern out further.

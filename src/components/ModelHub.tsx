@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Download, Pause, Play, X, Cpu, HardDrive, Zap, CheckCircle2, ExternalLink, Power } from 'lucide-react';
 import { Button } from '../ui/button';
+import { PageShellPanel } from '../ui/system';
 import { useRuntimeStore } from '../state/runtimeStore';
 
 function fmt(n: number) {
@@ -89,10 +90,7 @@ export default function ModelHub() {
   const families = [...new Set(catalog.map((m) => m.family))];
 
   return (
-    <div className="p-6 max-w-4xl mx-auto h-full overflow-y-auto">
-      <h1 className="text-xl font-bold">Model Hub</h1>
-      <p className="text-sm text-dim mb-4">Browse free / open-weight models and let DAWN download them locally. Nothing is pulled until you choose.</p>
-
+    <PageShellPanel width="max-w-4xl" icon={<Download size={22} />} title="Model Hub" subtitle="Browse free / open-weight models and let DAWN download them locally. Nothing is pulled until you choose.">
       {/* Hardware */}
       <div className="grid grid-cols-3 gap-3 mb-5">
         <HwCard icon={<Zap size={16} />} label="GPU" value={hw ? (hw.gpus[0]?.name || 'No CUDA GPU') : '…'} sub={vram ? `${vram} GB VRAM · ${hw.cuda ? 'CUDA' : 'CPU'}` : ''} />
@@ -189,7 +187,7 @@ export default function ModelHub() {
           ))}
         </div>
       ) : null}
-    </div>
+    </PageShellPanel>
   );
 }
 
