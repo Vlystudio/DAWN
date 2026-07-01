@@ -82,8 +82,10 @@ export interface Settings {
   rerankerModelPath: string;
   maxRerankCandidates: number;
   rerankTimeoutMs: number;
-  // Dedicated retrieval helper model slots (single-runtime aware; empty = use loaded chat model)
+  // Dedicated retrieval helper model slots (roles: which model/provider each helper task uses)
   helperModels: { queryRewriteModel: string; hydeModel: string; entailmentModel: string; rerankerModel: string; preferChatModelFallback: boolean; timeoutMs: number; maxTokens: number };
+  // Dedicated helper RUNTIME (a second llama-server process for helper tasks, separate from chat)
+  helperRuntime: { enabled: boolean; modelPath: string; port: number; contextSize: number; threads: number; gpuLayers: number; batchSize: number; startupTimeoutMs: number; requestTimeoutMs: number; autoStart: boolean };
   chunkOverlap: number;
 
   // --- Voice (local TTS) ---
@@ -276,6 +278,7 @@ export const DEFAULTS: Settings = {
   maxRerankCandidates: 20,
   rerankTimeoutMs: 8000,
   helperModels: { queryRewriteModel: '', hydeModel: '', entailmentModel: '', rerankerModel: '', preferChatModelFallback: true, timeoutMs: 8000, maxTokens: 200 },
+  helperRuntime: { enabled: false, modelPath: '', port: 8090, contextSize: 4096, threads: 0, gpuLayers: 0, batchSize: 0, startupTimeoutMs: 60000, requestTimeoutMs: 8000, autoStart: false },
   chunkSize: 1200,
   chunkOverlap: 200,
 

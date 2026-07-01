@@ -271,8 +271,8 @@ class Rag extends EventEmitter {
     ).slice(0, k);
 
     this.lastTrace = {
-      retrievalMode: mode, rewriteMode: rw.mode, rewriteVariants: rw.variants, hydeMode: hy.mode,
-      rerankMode: rr.mode, rerankReason: rr.reason,
+      retrievalMode: mode, rewriteMode: rw.mode, rewriteProvider: rw.provider, rewriteVariants: rw.variants,
+      hydeMode: hy.mode, hydeProvider: hy.provider, rerankMode: rr.mode, rerankReason: rr.reason,
     };
 
     return reranked.map((res) => {

@@ -196,6 +196,22 @@ test('compareStrategies: keyword is computed; vector/hybrid/model strategies hon
   assert.equal(r.best, 'keyword');
 });
 
+// --- dedicated helper runtime routing (resolveHelperTask) -------------------
+const HT = (over: any = {}) => ({ task: 'query_rewrite' as const, taskEnabled: true, helperRuntimeEnabled: false, helperRuntimeReady: false, chatReady: true, preferChatFallback: true, lexicalFallback: false, ...over });
+test('resolveHelperTask: dedicated helper runtime is used only when actually reachable', () => {
+  assert.equal(hm.resolveHelperTask(HT({ helperRuntimeEnabled: true, helperRuntimeReady: true })).provider, 'helper_runtime');
+  // enabled but NOT reachable → honest fallback to chat (never fakes helper_runtime)
+  assert.equal(hm.resolveHelperTask(HT({ helperRuntimeEnabled: true, helperRuntimeReady: false })).provider, 'chat');
+  // no helper runtime → chat fallback
+  assert.equal(hm.resolveHelperTask(HT()).provider, 'chat');
+});
+test('resolveHelperTask: honest fallbacks — task off → none; no providers → none; lexical for entailment', () => {
+  assert.equal(hm.resolveHelperTask(HT({ taskEnabled: false })).provider, 'none');
+  assert.equal(hm.resolveHelperTask(HT({ chatReady: false })).provider, 'none'); // rewrite: no helper, no chat, no lexical
+  assert.equal(hm.resolveHelperTask(HT({ task: 'entailment', chatReady: false, lexicalFallback: true })).provider, 'lexical');
+  assert.equal(hm.resolveHelperTask(HT({ task: 'entailment', chatReady: true, preferChatFallback: false, lexicalFallback: true })).provider, 'lexical');
+});
+
 // --- helper model slots (Loop 108) ------------------------------------------
 test('resolveHelper: single-runtime honesty (no fake concurrent helper)', () => {
   assert.equal(hm.resolveHelper({ helperModelPath: '', loadedModelPath: 'chat.gguf', loadedReady: true, preferChatFallback: true }).source, 'chat');

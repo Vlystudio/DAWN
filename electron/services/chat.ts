@@ -301,13 +301,15 @@ export async function generate(sender: WebContents, conversationId: string) {
       try {
         const v = verify.verifyAnswer(full, ragChunks);
         let mode = 'lexical';
-        // OPTIONAL local-model entailment upgrade (off by default). Evidence is untrusted; on any
-        // failure per claim we keep the conservative lexical label. Missing evidence is never "supported".
+        let entailProvider = '';
+        // OPTIONAL local-model entailment upgrade (off by default) — routes to the dedicated helper
+        // runtime if running, else the chat model, else keeps lexical. Evidence is untrusted; missing
+        // evidence is never "supported".
         if (entailment.enabled()) {
           const allEvidence = ragChunks.map((c) => c.text).join('\n\n');
           for (const c of v.claims.slice(0, 8)) {
             const e = await entailment.verifyClaim(c.claim, allEvidence);
-            if (e.support) { c.support = e.support; mode = 'entailment'; }
+            if (e.support) { c.support = e.support; mode = 'entailment'; entailProvider = e.provider; }
           }
           v.supported = v.claims.filter((c) => c.support === 'supported').length;
           v.partial = v.claims.filter((c) => c.support === 'partially_supported').length;
@@ -315,7 +317,7 @@ export async function generate(sender: WebContents, conversationId: string) {
           v.notEnough = v.claims.filter((c) => c.support === 'not_enough_evidence').length;
         }
         verification = {
-          summary: verify.summaryLine(v), groundedness: v.groundedness, warning: v.warning, method: v.method, mode,
+          summary: verify.summaryLine(v), groundedness: v.groundedness, warning: v.warning, method: v.method, mode, entailProvider: entailProvider || undefined,
           supported: v.supported, partial: v.partial, unsupported: v.unsupported, notEnough: v.notEnough,
           claims: v.claims.map((c) => ({ claim: c.claim.slice(0, 200), support: c.support, source: c.bestChunkName, stale: c.staleSource })),
         };

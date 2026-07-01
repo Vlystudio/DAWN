@@ -25,7 +25,7 @@ if (!gotLock) {
       win.focus();
     }
   });
-  app.whenReady().then(bootstrap);
+  app.whenReady().then(bootstrap).then(() => { try { require('./services/rag/helperRuntime').default.maybeAutoStart(); } catch { /* helper runtime is optional */ } });
 }
 
 async function bootstrap() {
@@ -210,6 +210,11 @@ app.on('window-all-closed', () => {
 app.on('before-quit', () => {
   db.saveNow();
   runtime.stop().catch(() => {});
+  try {
+    require('./services/rag/helperRuntime').default.stop();
+  } catch {
+    /* ignore */
+  }
   try {
     require('./services/kokoro').default.stop();
   } catch {

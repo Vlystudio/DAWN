@@ -45,6 +45,15 @@ const api = {
     reindexInfo: () => ipcRenderer.invoke('rag:reindexInfo'),
     reindexOutdated: () => ipcRenderer.invoke('rag:reindexOutdated'),
   },
+  helperRuntime: {
+    status: () => ipcRenderer.invoke('helperRuntime:status'),
+    start: () => ipcRenderer.invoke('helperRuntime:start'),
+    stop: () => ipcRenderer.invoke('helperRuntime:stop'),
+    restart: () => ipcRenderer.invoke('helperRuntime:restart'),
+    test: () => ipcRenderer.invoke('helperRuntime:test'),
+    updateSettings: (patch: any) => ipcRenderer.invoke('helperRuntime:updateSettings', patch),
+    pickModel: () => ipcRenderer.invoke('helperRuntime:pickModel'),
+  },
   setup: {
     complete: (patch: any) => ipcRenderer.invoke('setup:complete', patch),
   },

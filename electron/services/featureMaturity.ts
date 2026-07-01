@@ -60,6 +60,8 @@ export function gatherSignals(): MaturitySignals {
   let chunkStrategyVersion = 'v2', sourcesNeedReindex = 0;
   try { const info = require('./rag').default.reindexInfo(); chunkStrategyVersion = info.strategyVersion; sourcesNeedReindex = info.needReindex; } catch { /* */ }
   const helperCfg = (() => { const h: any = s.helperModels || {}; return { configured: ['queryRewriteModel', 'hydeModel', 'entailmentModel', 'rerankerModel'].filter((k) => h[k]).length, fallback: h.preferChatModelFallback !== false }; })();
+  let helperRuntimeEnabled = false, helperRuntimeState = 'OFF', helperRuntimeReachable = false, helperRuntimeModelConfigured = false, helperRuntimeInstalled = false; let helperRuntimeError: string | null = null;
+  try { const st = require('./rag/helperRuntime').default.status(); helperRuntimeEnabled = !!st.enabled; helperRuntimeState = st.state; helperRuntimeReachable = !!st.reachable; helperRuntimeModelConfigured = !!st.configured; helperRuntimeInstalled = !!st.installed; helperRuntimeError = st.error; } catch { /* */ }
   let ragEvalBestStrategy: string | null = null;
   try { const est = require('./rag/ragEval').default.status(); ragEvalBestStrategy = est?.strategies?.best ?? null; } catch { /* */ }
 
@@ -122,6 +124,7 @@ export function gatherSignals(): MaturitySignals {
     ragEvalLastRunAt, ragEvalCases, ragEvalHitRate, ragEvalGroundedness, ragEvalFixtureCount, ragEvalNegativesLeaked, ragEvalBestStrategy,
     chunkStrategyVersion, sourcesNeedReindex,
     helperModelsConfigured: helperCfg.configured, helperChatFallback: helperCfg.fallback,
+    helperRuntimeEnabled, helperRuntimeState, helperRuntimeReachable, helperRuntimeModelConfigured, helperRuntimeError, helperRuntimeInstalled,
   };
 }
 

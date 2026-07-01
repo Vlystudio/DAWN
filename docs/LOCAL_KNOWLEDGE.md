@@ -179,3 +179,21 @@ Model Cookbook exposes roles for **query rewrite / HyDE / entailment / reranker*
 a time, so a configured helper is used *directly* only when it **is** the loaded model; otherwise it falls
 back to the loaded chat model (if `preferChatModelFallback`) or skips — reported in System Health →
 Retrieval Helper Models. A dedicated second helper runtime is a future loop (not faked).
+
+## Dedicated helper runtime (optional)
+
+Retrieval helpers (query rewrite / HyDE / entailment) can now run on a **second, dedicated local
+llama-server** — separate from the chat model — so they don't compete with or block the active chat.
+
+- **Optional, off by default.** Enable + point it at a small helper `.gguf` in **Model Cookbook →
+  Helper runtime**. It runs on its own port (default 8090), **CPU by default** (so it doesn't take VRAM
+  from the chat model), with startup/request timeouts.
+- **Honest routing.** Each helper task records its provenance: **helper_runtime** (when the second
+  server is actually reachable) → **chat** (the loaded model, if allowed) → **lexical** (entailment
+  only) → **skipped**. It never reports "running" unless `/health` returns 200, and never fakes a second
+  model. Main chat keeps working even if the helper runtime is unavailable.
+- **Reranking is not affected** — it's embedding-similarity/heuristic (not generative), so it does not
+  use the helper runtime and is never presented as a cross-encoder.
+- **Safety unchanged.** The helper runtime only ever sees the query rewrite / HyDE / entailment prompts
+  DAWN already builds; it never touches blocked/skipped/removed/vault/auth/audit material, and its
+  request client never logs prompts or responses (no private content in diagnostics).

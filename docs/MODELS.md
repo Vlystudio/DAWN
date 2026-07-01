@@ -100,3 +100,12 @@ loaded model (honest fallback; see System Health → Retrieval Helper Models). *
 none ships — `onnxruntime-node` is a heavy/brittle native dependency to bundle, and a GGUF reranker via a
 second `llama-server --reranking` instance is the real future path. Today the real local rerank is
 **embedding-similarity**; System Health reports cross-encoder as **NEEDS SETUP**, never faked.
+
+### Dedicated helper runtime
+
+**Model Cookbook → Helper runtime** starts a *second* `llama-server` (its own port, CPU by default) that
+runs retrieval helpers (query rewrite / HyDE / entailment) without competing with the chat model. It's
+**optional** and off by default; when it isn't running, helpers fall back honestly to the chat model (or
+the lexical verifier for entailment). Settings live under `helperRuntime.*` (the process) — distinct from
+`helperModels.*` (the per-task roles). System Health → Retrieval Helper Models shows live status +
+per-role provenance. See [LOCAL_KNOWLEDGE.md](LOCAL_KNOWLEDGE.md).

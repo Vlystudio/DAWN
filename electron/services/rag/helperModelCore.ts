@@ -37,9 +37,38 @@ export function resolveHelper(i: HelperInputs): HelperResolution {
     : { source: 'none', modelName: '', reason: 'no model available' };
 }
 
+// --- dedicated-helper-runtime-aware resolution (structured) -----------------
+
+export type HelperProvider = 'helper_runtime' | 'chat' | 'lexical' | 'none';
+
+export interface TaskInputs {
+  task: HelperTask;
+  taskEnabled: boolean;          // the task's own on/off (e.g. queryRewriteEnabled)
+  helperRuntimeEnabled: boolean; // helperRuntime.enabled
+  helperRuntimeReady: boolean;   // helper server is actually reachable
+  chatReady: boolean;            // the main chat model is loaded
+  preferChatFallback: boolean;   // helperModels.preferChatModelFallback
+  lexicalFallback: boolean;      // entailment only: the lexical verifier is available
+}
+export interface TaskResolution { provider: HelperProvider; reason: string }
+
+/**
+ * Decide, honestly + structured, which provider runs a helper task. Priority: dedicated helper runtime
+ * (if enabled AND actually reachable) → chat model (if allowed + ready) → lexical fallback (entailment
+ * only) → skip. Never returns 'helper_runtime' unless the runtime is truly reachable.
+ */
+export function resolveHelperTask(i: TaskInputs): TaskResolution {
+  if (!i.taskEnabled) return { provider: 'none', reason: `${HELPER_LABELS[i.task]} is off` };
+  if (i.helperRuntimeEnabled && i.helperRuntimeReady) return { provider: 'helper_runtime', reason: 'dedicated helper runtime is running' };
+  const runtimeNote = i.helperRuntimeEnabled ? 'helper runtime not ready' : 'no helper runtime';
+  if (i.chatReady && i.preferChatFallback) return { provider: 'chat', reason: `${runtimeNote} — using the chat model` };
+  if (i.task === 'entailment' && i.lexicalFallback) return { provider: 'lexical', reason: `${runtimeNote} — using the lexical verifier` };
+  return { provider: 'none', reason: `${runtimeNote} and no fallback available — skipped` };
+}
+
 export const HELPER_TASKS: HelperTask[] = ['query_rewrite', 'hyde', 'entailment', 'reranker'];
 export const HELPER_LABELS: Record<HelperTask, string> = {
   query_rewrite: 'Query rewrite', hyde: 'HyDE', entailment: 'Entailment', reranker: 'Reranker',
 };
 
-export default { resolveHelper, HELPER_TASKS, HELPER_LABELS };
+export default { resolveHelper, resolveHelperTask, HELPER_TASKS, HELPER_LABELS };

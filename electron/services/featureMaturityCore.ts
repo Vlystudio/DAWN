@@ -90,6 +90,8 @@ export interface MaturitySignals {
   ragEvalFixtureCount?: number; ragEvalNegativesLeaked?: number; ragEvalBestStrategy?: string | null;
   chunkStrategyVersion?: string; sourcesNeedReindex?: number;
   helperModelsConfigured?: number; helperChatFallback?: boolean;
+  helperRuntimeEnabled?: boolean; helperRuntimeState?: string; helperRuntimeReachable?: boolean;
+  helperRuntimeModelConfigured?: boolean; helperRuntimeError?: string | null; helperRuntimeInstalled?: boolean;
 }
 
 const n = (x?: number) => (typeof x === 'number' && isFinite(x) ? x : 0);
@@ -219,21 +221,23 @@ const EVAL: Record<string, Evaluator> = {
     };
   },
   retrieval_helpers: (s) => {
-    // DAWN runs one llama-server at a time, so helper slots are config + honest routing: a configured
-    // helper is only used directly when it IS the loaded model; else it falls back to the chat model.
-    const cfg = n(s.helperModelsConfigured);
-    return {
-      status: 'PARTIAL' as MaturityStatus,
-      works: [
-        'Dedicated helper slots + Model Cookbook roles for query rewrite / HyDE / entailment / rerank',
-        `Currently ${cfg} helper slot(s) configured; chat-model fallback ${yes(s.helperChatFallback) ? 'ON' : 'OFF'}`,
-        'Helper outputs stay untrusted (never cited, never trigger tools); prompts/responses not logged to diagnostics',
-      ],
-      missing: [
-        'DAWN runs ONE model at a time, so a configured helper is used directly only when it is the loaded model; otherwise it honestly falls back to the chat model. A dedicated helper runtime (second llama-server) is a future loop — not faked.',
-      ],
-      nextAction: 'Pick helper models in Model Cookbook (or leave empty to use the chat model)',
-    };
+    // A DEDICATED helper runtime (2nd llama-server) can now run helper tasks WITHOUT competing with the
+    // chat model. Honest: 'running' is only reported when the helper server is actually reachable.
+    const enabled = yes(s.helperRuntimeEnabled);
+    const reachable = yes(s.helperRuntimeReachable);
+    const state = s.helperRuntimeState || 'OFF';
+    const works: string[] = [
+      'Dedicated helper slots + Model Cookbook roles for query rewrite / HyDE / entailment / rerank',
+      'Helper outputs stay untrusted (never cited, never trigger tools); prompts/responses are not logged to diagnostics',
+      'Every helper result records its provenance (helper_runtime / chat / lexical / skipped)',
+    ];
+    const missing: string[] = [];
+    let status: MaturityStatus;
+    if (!enabled) { status = 'PARTIAL'; missing.push('Dedicated helper runtime disabled — helper tasks use the loaded chat model (honest fallback). Enable it (Model Cookbook) to run helpers on a separate llama-server without competing with chat.'); }
+    else if (reachable) { status = 'COMPLETE'; works.push(`Dedicated helper runtime RUNNING (${state}) — rewrite/HyDE/entailment run on a second llama-server, not the chat model`); }
+    else { status = 'BLOCKED_BY_SETUP'; missing.push(`Helper runtime enabled but not reachable (${state}${s.helperRuntimeError ? ': ' + s.helperRuntimeError : ''}) — ${yes(s.helperRuntimeModelConfigured) ? 'starting or failed; tasks fall back to the chat model' : 'configure a small helper .gguf'}`); }
+    if (!yes(s.helperRuntimeInstalled)) missing.push('llama-server.exe not found (resources/runtime) — the helper runtime cannot start');
+    return { status, works, missing, nextAction: enabled ? (reachable ? undefined : 'Configure/start the helper runtime in Model Cookbook') : 'Enable the dedicated helper runtime in Model Cookbook' };
   },
   research: (s) => ({ status: n(s.researchRuns) > 0 ? 'COMPLETE' : 'PARTIAL', works: ['Plan → search → cited report', 'Untrusted-source firewall', 'Web off by default'], missing: n(s.researchRuns) > 0 ? [] : ['No research runs yet'], nextAction: n(s.researchRuns) > 0 ? undefined : 'Start a research run' }),
   compare: (s) => ({ status: 'COMPLETE', works: ['2–4 model compare', 'Blind mode + AI judge'], missing: n(s.modelCount) >= 2 ? [] : ['Needs ≥2 installed models'], nextAction: n(s.modelCount) >= 2 ? undefined : 'Install another model' }),

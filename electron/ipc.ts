@@ -38,6 +38,7 @@ import kokoro from './services/kokoro';
 import vision from './services/vision';
 import visionChat from './services/vision/visionChat';
 import attachments from './services/attachments/attachments';
+import helperRuntime from './services/rag/helperRuntime';
 import companion from './services/companion';
 import fileAgent from './services/fileAgent';
 import featureMaturity from './services/featureMaturity';
@@ -200,6 +201,19 @@ export function registerIpc() {
   ipcMain.handle('rag:runEval', () => require('./services/rag/ragEval').default.run());
   ipcMain.handle('rag:reindexInfo', () => rag.reindexInfo());
   ipcMain.handle('rag:reindexOutdated', () => rag.reindexOutdated());
+  // Dedicated helper runtime (a second llama-server for helper tasks)
+  ipcMain.handle('helperRuntime:status', () => ({ ...helperRuntime.status(), roles: helperRuntime.roles() }));
+  ipcMain.handle('helperRuntime:start', async () => { await helperRuntime.start(); return { ...helperRuntime.status(), roles: helperRuntime.roles() }; });
+  ipcMain.handle('helperRuntime:stop', async () => { await helperRuntime.stop(); return { ...helperRuntime.status(), roles: helperRuntime.roles() }; });
+  ipcMain.handle('helperRuntime:restart', async () => { await helperRuntime.restart(); return { ...helperRuntime.status(), roles: helperRuntime.roles() }; });
+  ipcMain.handle('helperRuntime:test', () => helperRuntime.test());
+  ipcMain.handle('helperRuntime:updateSettings', (_e, patch) => helperRuntime.updateSettings(patch || {}));
+  ipcMain.handle('helperRuntime:pickModel', async (e) => {
+    const win = BrowserWindow.fromWebContents(e.sender);
+    const res = await dialog.showOpenDialog(win!, { title: 'Select a small helper model (.gguf)', properties: ['openFile'], filters: [{ name: 'GGUF', extensions: ['gguf'] }] });
+    if (res.canceled || !res.filePaths[0]) return { ok: false, canceled: true };
+    return helperRuntime.updateSettings({ modelPath: res.filePaths[0] });
+  });
   ipcMain.handle('rag:pickFolder', async (e) => {
     const win = BrowserWindow.fromWebContents(e.sender);
     const res = await dialog.showOpenDialog(win!, { title: 'Choose a folder to index', properties: ['openDirectory'] });
