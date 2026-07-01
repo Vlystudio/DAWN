@@ -67,3 +67,12 @@ never silently applies risky settings — manual override remains available).
 
 Backend: `electron/services/optimizer/modelCookbook.ts` over the pure, tested `modelCookbookCore.ts`
 (role normalization, fit labels, best-per-role). IPC `models:cookbook`.
+
+## Vision models (for Vision Chat / image attachments)
+
+Chat can accept image attachments (paste/drop/upload). Full image understanding needs a **vision-capable
+GGUF + its `mmproj` projector** (e.g. Qwen2.5-VL, LLaVA, MiniCPM-V) plus the bundled multimodal runtime
+`llama-mtmd-cli` (already in `resources/runtime`). Configure `vlmModelPath` + `vlmMmprojPath` (or the
+**Vision** role). `parseModelId().isVision` detects vision GGUFs by name; `mmproj` files are stored in the
+models folder but never listed as standalone models. If no vision model is configured, DAWN honestly says
+it cannot see the image (it never guesses). See [VISION_CHAT.md](VISION_CHAT.md).

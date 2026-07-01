@@ -1,14 +1,24 @@
 import React, { useEffect, useState } from 'react';
-import { Send, Square, Paperclip, Mic, Brain, FileText, Terminal } from 'lucide-react';
+import { Send, Square, Paperclip, Mic, Brain, FileText, Terminal, ImagePlus, EyeOff } from 'lucide-react';
 import { Button } from '../ui/button';
 import { useBrainStore } from '../state/brainStore';
 import { resolveNames, baseName } from '../lib/modelName';
+import { AttachmentThumb } from './ChatAttachments';
 
 /**
- * Composer — message input with the loaded-model indicator, Memory / Local
- * Knowledge / Tools toggles, and voice/file placeholders. Enter sends,
- * Shift+Enter newlines. Pressing send sets the brain to THINKING immediately.
+ * Composer — message input with the loaded-model indicator, Memory / Local Knowledge / Tools toggles,
+ * and IMAGE ATTACHMENTS (paste / drag-drop / upload). Enter sends, Shift+Enter newlines. A message can
+ * carry images even with no text. Drafts + the vision-capability hint are owned by ChatView.
  */
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result));
+    r.onerror = () => reject(new Error('read failed'));
+    r.readAsDataURL(file);
+  });
+}
+
 export default function Composer({
   models,
   loadedPath,
@@ -20,6 +30,13 @@ export default function Composer({
   conv,
   onToggleMemory,
   onToggleKnowledge,
+  draftAttachments = [],
+  onAddImageDataUrl,
+  onPickImage,
+  onRemoveAttachment,
+  onOpenAttachment,
+  attachError,
+  visionCap,
 }: {
   models: { name: string; path: string }[];
   loadedPath: string;
@@ -31,10 +48,18 @@ export default function Composer({
   conv: any;
   onToggleMemory: () => void;
   onToggleKnowledge: () => void;
+  draftAttachments?: any[];
+  onAddImageDataUrl?: (dataUrl: string, name?: string) => void;
+  onPickImage?: () => void;
+  onRemoveAttachment?: (id: string) => void;
+  onOpenAttachment?: (id: string) => void;
+  attachError?: string;
+  visionCap?: any;
 }) {
   const [text, setText] = useState('');
   const [toolsOn, setToolsOn] = useState(false);
   const [nameMap, setNameMap] = useState<Record<string, string>>({});
+  const [dragOver, setDragOver] = useState(false);
   const setBrain = useBrainStore((s) => s.setBrain);
   const current = useBrainStore((s) => s.state);
 
@@ -42,23 +67,42 @@ export default function Composer({
     window.dawn.settings.get().then((s: any) => setToolsOn(!!s.toolsEnabled));
   }, []);
 
-  // Resolve friendly DAWN names for the model dropdown (cached).
   useEffect(() => {
     if (models.length) resolveNames(models.map((m) => m.path)).then(setNameMap);
   }, [models]);
 
+  const hasDrafts = draftAttachments.length > 0;
   const send = () => {
     const t = text.trim();
-    if (!t || streaming) return;
+    if ((!t && !hasDrafts) || streaming) return;
     setText('');
     setBrain('THINKING', 'Thinking…');
     onSend(t);
   };
 
+  async function handlePaste(e: React.ClipboardEvent) {
+    const items = e.clipboardData?.items;
+    if (!items || !onAddImageDataUrl) return;
+    for (const it of Array.from(items)) {
+      if (it.kind === 'file' && it.type.startsWith('image/')) {
+        const f = it.getAsFile();
+        if (f) { e.preventDefault(); try { onAddImageDataUrl(await fileToDataUrl(f), f.name || 'pasted-image.png'); } catch { /* */ } }
+      }
+    }
+  }
+  async function handleDrop(e: React.DragEvent) {
+    const files = Array.from(e.dataTransfer?.files || []).filter((f) => f.type.startsWith('image/'));
+    setDragOver(false);
+    if (!files.length || !onAddImageDataUrl) return;
+    e.preventDefault();
+    for (const f of files) { try { onAddImageDataUrl(await fileToDataUrl(f), f.name); } catch { /* */ } }
+  }
+
   const memOn = conv ? !!conv.use_memory : true;
   const ragOn = conv ? !!conv.use_rag : false;
   const switching = runtimeState === 'STARTING' || runtimeState === 'LOADING_MODEL' || runtimeState === 'STOPPING';
   const model = loadedPath ? loadedPath.split(/[\\/]/).pop() : '';
+  const visionUnready = visionCap && !visionCap.ready;
 
   async function toggleTools() {
     const v = !toolsOn;
@@ -67,8 +111,19 @@ export default function Composer({
   }
 
   return (
-    <div className="relative border-t border-border bg-panel2/40 backdrop-blur-xl px-4 pt-2.5 pb-3">
+    <div
+      className="relative border-t border-border bg-panel2/40 backdrop-blur-xl px-4 pt-2.5 pb-3"
+      onDragOver={(e) => { if (Array.from(e.dataTransfer?.types || []).includes('Files')) { e.preventDefault(); setDragOver(true); } }}
+      onDragLeave={(e) => { if (e.currentTarget === e.target) setDragOver(false); }}
+      onDrop={handleDrop}
+    >
       <div className="absolute left-0 right-0 top-0 hud-divider" />
+      {dragOver ? (
+        <div className="absolute inset-1 z-20 rounded-2xl border-2 border-dashed grid place-items-center pointer-events-none" style={{ borderColor: 'var(--accent)', background: 'rgba(var(--accent-rgb),0.08)' }}>
+          <span className="text-sm inline-flex items-center gap-2" style={{ color: 'var(--accent)' }}><ImagePlus size={16} /> Drop image to attach</span>
+        </div>
+      ) : null}
+
       <div className="flex items-center gap-2 mb-2 flex-wrap">
         <span className="panel-head w-auto after:hidden text-[10px] mr-1">Console</span>
         <div className="relative">
@@ -96,6 +151,22 @@ export default function Composer({
         </button>
       </div>
 
+      {/* Draft attachment previews */}
+      {hasDrafts ? (
+        <div className="flex items-center gap-2 mb-2 flex-wrap">
+          {draftAttachments.map((a) => (
+            <AttachmentThumb key={a.id} att={a} removable onRemove={() => onRemoveAttachment?.(a.id)} onOpen={() => onOpenAttachment?.(a.id)} />
+          ))}
+        </div>
+      ) : null}
+      {hasDrafts && visionUnready ? (
+        <div className="text-[11px] text-neural-amber mb-2 inline-flex items-start gap-1.5">
+          <EyeOff size={12} className="mt-0.5 shrink-0" />
+          <span>{visionCap.reason} DAWN will send the image but can't see it yet.{visionCap.nextAction ? ` ${visionCap.nextAction}` : ''}</span>
+        </div>
+      ) : null}
+      {attachError ? <div className="text-[11px] text-neural-red mb-2">{attachError}</div> : null}
+
       <div className="console-field flex items-end gap-2 rounded-2xl border border-border bg-bg/70 pl-3 pr-2 py-1.5">
         <span className="console-caret font-mono text-sm select-none pb-2.5 pt-0.5">›_</span>
         <textarea
@@ -104,6 +175,7 @@ export default function Composer({
             setText(e.target.value);
             if (current === 'IDLE') setBrain('LISTENING', 'Taking in your message…');
           }}
+          onPaste={handlePaste}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault();
@@ -111,10 +183,15 @@ export default function Composer({
             }
           }}
           rows={1}
-          placeholder={model ? 'Message DAWN…  (Enter to send · Shift+Enter newline)' : 'Power DAWN on and load a model to begin.'}
+          placeholder={model ? 'Message DAWN…  (Enter to send · paste or drop an image)' : 'Power DAWN on and load a model to begin.'}
           className="flex-1 resize-none bg-transparent border-0 py-2 text-sm outline-none max-h-40 placeholder:text-faint"
         />
-        <button className="p-2 text-faint cursor-not-allowed self-center" title="Attach file (soon)" disabled>
+        <button
+          onClick={onPickImage}
+          className="p-2 text-faint hover:text-ink self-center disabled:opacity-40"
+          title="Attach an image (PNG/JPEG/WebP/GIF) — or paste/drop one"
+          disabled={!onPickImage}
+        >
           <Paperclip size={17} />
         </button>
         <button className="p-2 text-faint cursor-not-allowed self-center" title="Voice input (soon)" disabled>
@@ -123,7 +200,7 @@ export default function Composer({
         {streaming ? (
           <Button variant="danger" onClick={onStop} className="h-10 self-center"><Square size={15} /> Stop</Button>
         ) : (
-          <Button variant="primary" onClick={send} disabled={!text.trim()} className="h-10 self-center"><Send size={15} /> Send</Button>
+          <Button variant="primary" onClick={send} disabled={!text.trim() && !hasDrafts} className="h-10 self-center"><Send size={15} /> Send</Button>
         )}
       </div>
     </div>

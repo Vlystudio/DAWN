@@ -87,3 +87,10 @@ tests/optimizer.test.ts · tests/bench.test.ts   (npm run test:agentos)
 ```
 
 IPC: `window.dawn.optimizer.*`, `window.dawn.bench.{run, history, best, delete}`.
+
+## Vision role
+
+The `vision` role (see `modelCookbookCore` ROLES) marks a vision-capable model used by **Vision Chat**
+(image attachments). A vision model needs both a VLM GGUF and its `mmproj` projector; the Model Cookbook
+surfaces the best installed vision model, and System Health → **Vision Chat** reports whether image chat
+is ready or what setup is missing. See [VISION_CHAT.md](VISION_CHAT.md).

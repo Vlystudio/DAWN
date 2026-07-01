@@ -29,6 +29,15 @@ CREATE TABLE IF NOT EXISTS messages (
 );
 CREATE INDEX IF NOT EXISTS idx_messages_conv ON messages(conversation_id);
 
+CREATE TABLE IF NOT EXISTS chat_attachments (
+  id TEXT PRIMARY KEY, conversation_id TEXT, message_id TEXT, kind TEXT,
+  mime_type TEXT, size_bytes INTEGER, width INTEGER, height INTEGER,
+  storage_key TEXT, storage_path TEXT, display_name TEXT, content_hash TEXT,
+  ocr_text TEXT, analysis_status TEXT, analyzed_at INTEGER, created_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_chat_att_msg ON chat_attachments(message_id);
+CREATE INDEX IF NOT EXISTS idx_chat_att_conv ON chat_attachments(conversation_id);
+
 CREATE TABLE IF NOT EXISTS memories (
   id TEXT PRIMARY KEY, type TEXT, content TEXT, source TEXT,
   importance REAL DEFAULT 0.5, confidence REAL DEFAULT 0.8,
@@ -351,6 +360,9 @@ function migrate() {
     state: 'TEXT', skipped_reason: 'TEXT', error_message: 'TEXT', size_bytes: 'INTEGER',
     indexed_at: 'INTEGER', updated_at: 'INTEGER', src_mtime: 'INTEGER',
   });
+  // Chat image attachments (Vision Chat): flag messages that carry images.
+  ensureColumns('messages', { has_images: 'INTEGER DEFAULT 0', attachment_count: 'INTEGER DEFAULT 0' });
+  ensureColumns('chat_attachments', { analyzed_at: 'INTEGER' });
 }
 
 export function run(sql: string, params: any[] = []) {

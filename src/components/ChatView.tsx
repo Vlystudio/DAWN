@@ -3,6 +3,7 @@ import { RotateCw, Copy, Brain as BrainIcon, Volume2, VolumeX, Square, BookMarke
 import WorkspaceItemPicker from './WorkspaceItemPicker';
 import Markdown from './Markdown';
 import Composer from './Composer';
+import { AttachmentThumb, AttachmentPreviewModal } from './ChatAttachments';
 import AIBrainScene from '../brain/AIBrainScene';
 import BrainBackdrop from '../brain/BrainBackdrop';
 import { useBrainStore } from '../state/brainStore';
@@ -52,6 +53,10 @@ export default function ChatView({
   const [streaming, setStreaming] = useState(false);
   const [streamText, setStreamText] = useState('');
   const [error, setError] = useState('');
+  const [drafts, setDrafts] = useState<any[]>([]);
+  const [attachError, setAttachError] = useState('');
+  const [visionCap, setVisionCap] = useState<any>(null);
+  const [previewId, setPreviewId] = useState<string | null>(null);
 
   const idRef = useRef<string | null>(null);
   const streamRef = useRef('');
@@ -69,6 +74,7 @@ export default function ChatView({
   useEffect(() => {
     voice.init();
     window.dawn.settings.get().then((s: any) => setVoiceOn(!!s.voiceEnabled));
+    window.dawn.chatAttachments.capabilities().then(setVisionCap).catch(() => {});
     // Full list of installed models (for the switcher) + the currently loaded one.
     const refreshModels = () => window.dawn.models.list().then(setModels);
     const applyRt = (st: any) => { setLoadedPath(st?.model || ''); setRtState(st?.state || 'OFF'); };
@@ -111,7 +117,9 @@ export default function ChatView({
   }
 
   useEffect(() => {
-    if (selectedId) loadConv(selectedId);
+    setDrafts([]);
+    setAttachError('');
+    if (selectedId) { loadConv(selectedId); refreshDrafts(selectedId); }
     else {
       setConv(null);
       setMessages([]);
@@ -146,14 +154,40 @@ export default function ChatView({
     return c.id;
   }
 
+  async function refreshDrafts(id: string) {
+    try { setDrafts(await window.dawn.chatAttachments.listDraft(id)); } catch { /* */ }
+  }
+  async function addImageDataUrl(dataUrl: string, name?: string) {
+    setAttachError('');
+    const id = await ensureConv();
+    const r = await window.dawn.chatAttachments.addFromClipboard(id, dataUrl, name);
+    if (r?.ok) refreshDrafts(id);
+    else if (r && !r.canceled) setAttachError(r.error || 'Could not attach that image.');
+  }
+  async function pickImage() {
+    setAttachError('');
+    const id = await ensureConv();
+    const r = await window.dawn.chatAttachments.addFromFile(id);
+    if (r?.ok) refreshDrafts(id);
+    else if (r && !r.canceled) setAttachError(r.error || 'Could not attach that image.');
+  }
+  async function removeAttachment(aid: string) {
+    await window.dawn.chatAttachments.removeDraft(aid);
+    if (idRef.current) refreshDrafts(idRef.current);
+    else setDrafts((d) => d.filter((x) => x.id !== aid));
+  }
+
   async function onSend(text: string) {
     const id = await ensureConv();
-    setMessages((p) => [...p, { id: 'tmp' + Date.now(), role: 'user', content: text }]);
+    const attachmentIds = drafts.map((d) => d.id);
+    setMessages((p) => [...p, { id: 'tmp' + Date.now(), role: 'user', content: text, attachments: drafts }]);
+    setDrafts([]);
+    setAttachError('');
     setStreaming(true);
     streamRef.current = '';
     setStreamText('');
     setError('');
-    await window.dawn.chat.send({ conversationId: id, content: text });
+    await window.dawn.chat.send({ conversationId: id, content: text, attachmentIds });
   }
 
   function onStop() {
@@ -264,7 +298,14 @@ export default function ChatView({
                 {m.role === 'user' ? 'You' : <><span className="inline-block w-1 h-1 rounded-full" style={{ background: 'var(--accent)', boxShadow: '0 0 6px var(--accent)' }} /><span style={{ color: 'var(--accent)' }}>DAWN</span></>}
               </div>
               {m.role === 'user' ? (
-                <div className="rounded-xl px-4 py-3 whitespace-pre-wrap text-sm border border-border/70 border-l-2 bg-panel/30 backdrop-blur-sm" style={{ borderLeftColor: 'rgba(var(--accent-rgb),0.7)' }}>{m.content}</div>
+                <div className="rounded-xl px-4 py-3 text-sm border border-border/70 border-l-2 bg-panel/30 backdrop-blur-sm" style={{ borderLeftColor: 'rgba(var(--accent-rgb),0.7)' }}>
+                  {m.attachments?.length ? (
+                    <div className="flex items-center gap-2 flex-wrap mb-2">
+                      {m.attachments.map((a: any) => <AttachmentThumb key={a.id} att={a} onOpen={() => setPreviewId(a.id)} />)}
+                    </div>
+                  ) : null}
+                  {m.content ? <div className="whitespace-pre-wrap">{m.content}</div> : null}
+                </div>
               ) : (
                 <div className="pl-4 border-l-2" style={{ borderLeftColor: 'rgba(var(--accent-rgb),0.32)' }}>
                   <Markdown>{m.content}</Markdown>
@@ -349,8 +390,18 @@ export default function ChatView({
           conv={conv}
           onToggleMemory={toggleMemory}
           onToggleKnowledge={toggleKnowledge}
+          draftAttachments={drafts}
+          onAddImageDataUrl={addImageDataUrl}
+          onPickImage={pickImage}
+          onRemoveAttachment={removeAttachment}
+          onOpenAttachment={setPreviewId}
+          attachError={attachError}
+          visionCap={visionCap}
         />
       </div>
+
+      <AttachmentPreviewModal id={previewId} onClose={() => setPreviewId(null)} />
+
 
       {toolReq ? (
         <div className="fixed inset-0 z-[1500] grid place-items-center bg-bg/70 backdrop-blur-sm">

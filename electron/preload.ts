@@ -199,6 +199,16 @@ const api = {
     onToolRequest: (cb: (p: any) => void) => sub('chat:tool-request', cb),
     resolveTool: (callId: string, approved: boolean) => ipcRenderer.invoke('chat:tool-resolve', { callId, approved }),
   },
+  chatAttachments: {
+    addFromClipboard: (conversationId: string, dataUrl: string, name?: string) => ipcRenderer.invoke('chat:attachments:addFromClipboard', { conversationId, dataUrl, name }),
+    addFromFile: (conversationId: string) => ipcRenderer.invoke('chat:attachments:addFromFile', { conversationId }),
+    removeDraft: (id: string) => ipcRenderer.invoke('chat:attachments:removeDraft', { id }),
+    listDraft: (conversationId: string) => ipcRenderer.invoke('chat:attachments:listDraft', { conversationId }),
+    listForMessage: (messageId: string) => ipcRenderer.invoke('chat:attachments:listForMessage', { messageId }),
+    getPreview: (id: string) => ipcRenderer.invoke('chat:attachments:getPreview', { id }),
+    getMetadata: (id: string) => ipcRenderer.invoke('chat:attachments:getMetadata', { id }),
+    capabilities: () => ipcRenderer.invoke('vision:capabilities'),
+  },
   memory: {
     list: () => ipcRenderer.invoke('memory:list'),
     add: (content: string, type?: string) => ipcRenderer.invoke('memory:add', { content, type }),

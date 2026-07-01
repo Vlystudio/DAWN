@@ -294,3 +294,13 @@ no inbound network surface. The threat model above is written for that local, si
 (an attacker's data reaching the model via documents/email/web; local secret hygiene), not for a
 multi-tenant or internet-facing deployment. If this ever changes to a shared/distributed build,
 revisit the network exposure and add a disclosure process for outside reporters.
+
+## Image attachments (Vision Chat)
+
+Chat images are stored locally in `%APPDATA%/DAWN/chat-attachments` (content-addressed) with metadata in
+SQLite. Only **safe metadata** (name/mime/size/dimensions/id/date) is ever exposed — never the file path,
+raw bytes, content hash, EXIF, or any OCR/vision text. Image bytes/paths/OCR text never enter logs,
+diagnostics, Global Search, or workspace metadata (workspace items may only carry a `has_image_attachment`
+flag + count). OCR/vision text is **untrusted**: a screenshot can carry injection text, so it is wrapped
+and passed through the prompt-injection firewall — described/quoted, never obeyed, never a system message.
+Nothing is analyzed until you send the message; no autonomous file scanning. See [VISION_CHAT.md](VISION_CHAT.md).

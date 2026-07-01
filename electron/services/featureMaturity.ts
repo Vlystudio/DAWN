@@ -43,6 +43,10 @@ export function gatherSignals(): MaturitySignals {
 
   const dcdAvailable = tryBool(() => { const d = require('./dcd').default; const st = d.status ? d.status() : null; return !!(st && (st.available || st.installed || st.ready)); });
 
+  // Vision Chat: honest capability probe (no model paths leak — only booleans/reason).
+  let visionChatReady = false, visionChatMode = 'none', visionChatReason = '', visionChatNextAction = '', visionModelConfigured = false, visionCliPresent = false;
+  try { const vc = require('./vision/visionChat').default; const c = vc.capabilities ? vc.capabilities() : null; if (c) { visionChatReady = !!c.ready; visionChatMode = c.mode || 'none'; visionChatReason = c.reason || ''; visionChatNextAction = c.nextAction || ''; visionModelConfigured = !!c.modelConfigured; visionCliPresent = !!c.cliPresent; } } catch { /* */ }
+
   const now = Date.now();
   return {
     runtimeState, runtimeInstalled, modelSelected, modelCount,
@@ -88,6 +92,8 @@ export function gatherSignals(): MaturitySignals {
     commandPalette: true,    // global Ctrl/Cmd+K launcher (src/components/CommandPalette.tsx)
     globalSearch: true,      // Ctrl/Cmd+Shift+F overlay (src/components/GlobalSearch.tsx)
     indexedFolders: tryNum(() => Array.isArray(s.indexedFolders) ? s.indexedFolders.length : 0),
+    visionChatReady, visionChatMode, visionChatReason, visionChatNextAction, visionModelConfigured, visionCliPresent,
+    chatImages: tryNum(() => count('chat_attachments', "kind='image'")),
   };
 }
 

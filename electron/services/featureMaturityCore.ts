@@ -77,6 +77,9 @@ export interface MaturitySignals {
   agentosEnabled?: boolean; authEnabled?: boolean; totpEnabled?: boolean; firstRunComplete?: boolean;
   codingWorkspaces?: number; fileAgentEnabled?: boolean; updaterConfigured?: boolean;
   commandPalette?: boolean; globalSearch?: boolean; indexedFolders?: number;
+  // Vision Chat / image attachments (honest capability probe + storage/DB presence)
+  visionChatReady?: boolean; visionChatMode?: string; visionChatReason?: string; visionChatNextAction?: string;
+  visionModelConfigured?: boolean; visionCliPresent?: boolean; chatImages?: number;
 }
 
 const n = (x?: number) => (typeof x === 'number' && isFinite(x) ? x : 0);
@@ -118,6 +121,7 @@ export const FEATURE_AREAS: FeatureArea[] = [
   { id: 'notion', name: 'Notion', group: 'Integrations', route: 'notion', settingsRoute: 'settings', docs: 'SETUP.md', summary: 'Save notes/reports to Notion.' },
   { id: 'voice', name: 'Voice / TTS', group: 'Integrations', route: 'settings', settingsRoute: 'settings', docs: 'VOICE.md', summary: 'Local text-to-speech for responses.' },
   { id: 'vision', name: 'Live Vision', group: 'Integrations', route: 'vision', settingsRoute: 'settings', docs: 'SETUP.md', summary: 'Local webcam perception (off by default).' },
+  { id: 'vision_chat', name: 'Vision Chat / Image Attachments', group: 'Core', route: 'chat', settingsRoute: 'hub', docs: 'VISION_CHAT.md', summary: 'Paste/upload images into chat; local vision model or honest fallback.' },
   { id: 'companion', name: 'Phone Companion', group: 'Integrations', route: 'settings', settingsRoute: 'settings', docs: 'SETUP.md', summary: 'LAN-only mobile access (off by default).' },
   { id: 'coding', name: 'Coding Autopilot', group: 'Tools', route: 'coding', docs: 'coding-autopilot.md', summary: 'Scoped, approval-gated code edits.' },
   { id: 'fileagent', name: 'File Agent', group: 'Tools', route: 'coding', settingsRoute: 'settings', docs: 'file-edit-tools.md', summary: 'Scoped file read/write with undo.' },
@@ -183,6 +187,29 @@ const EVAL: Record<string, Evaluator> = {
   obsidian: (s) => ({ status: yes(s.obsidianConfigured) ? 'COMPLETE' : 'BLOCKED_BY_SETUP', works: ['Vault sync', 'Save notes/reports'], missing: yes(s.obsidianConfigured) ? [] : ['No vault path set'], requiredSetup: yes(s.obsidianConfigured) ? undefined : 'Choose your Obsidian vault path in Settings.', nextAction: yes(s.obsidianConfigured) ? undefined : 'Open Settings → Obsidian' }),
   notion: (s) => ({ status: yes(s.notionConfigured) ? 'COMPLETE' : 'BLOCKED_BY_SETUP', works: ['Token stored securely', 'Save notes/reports'], missing: yes(s.notionConfigured) ? [] : ['No integration token'], requiredSetup: yes(s.notionConfigured) ? undefined : 'Add a Notion integration token in Settings.', nextAction: yes(s.notionConfigured) ? undefined : 'Open Settings → Notion' }),
   voice: (s) => ({ status: yes(s.voiceEnabled) ? 'COMPLETE' : 'BLOCKED_BY_SETUP', works: ['Local TTS', 'Read responses aloud'], missing: yes(s.voiceEnabled) ? [] : ['Voice disabled'], requiredSetup: yes(s.voiceEnabled) ? undefined : 'Enable Voice in Settings and install a voice.', nextAction: yes(s.voiceEnabled) ? undefined : 'Open Settings → Voice' }),
+  vision_chat: (s) => {
+    // Image attach/paste/upload + local storage + DB are always available; the honest gap is whether a
+    // vision-capable model is configured. READY only when a real VLM path exists; else PARTIAL/NEEDS_SETUP.
+    const works = [
+      'Paste, drag-drop, or upload PNG/JPEG/WebP/GIF into chat; validated + stored locally (size/dimension limits; corrupt/renamed files rejected)',
+      'Attachments persist in SQLite, associate with the message, show a thumbnail + open a larger preview',
+      'Only safe metadata (name/mime/size/dims) is exposed — never the file path, bytes, EXIF, or OCR text; image content never enters diagnostics or search',
+      'Image text (OCR/vision) is treated as UNTRUSTED evidence (wrapped + inspected), never as instructions',
+    ];
+    if (yes(s.visionChatReady) && s.visionChatMode === 'vlm') {
+      return { status: 'COMPLETE', works: [...works, 'A vision-capable local model is configured — attached images are actually analyzed on-device'], missing: [] };
+    }
+    if (yes(s.visionChatReady) && s.visionChatMode === 'ocr') {
+      return { status: 'PARTIAL', works: [...works, 'OCR text fallback is available'], missing: ['No full vision model configured — only OCR text, not full image understanding'], nextAction: s.visionChatNextAction || 'Install a vision-capable model + its mmproj.' };
+    }
+    return {
+      status: 'BLOCKED_BY_SETUP',
+      works,
+      missing: [`No vision model configured: ${s.visionChatReason || 'a VLM GGUF + its mmproj are required'}. Until then DAWN honestly tells you it can't see the image (it never guesses).`],
+      requiredSetup: s.visionChatNextAction || 'Install a vision-capable model (e.g. Qwen2.5-VL, LLaVA, MiniCPM-V) + its mmproj in the Model Hub, then set it as the Vision role.',
+      nextAction: 'Install/select a vision-capable model in the Model Hub.',
+    };
+  },
   vision: (s) => yes(s.visionEnabled)
     ? { status: 'PARTIAL', works: ['Camera UI', 'Off by default'], missing: ['Perception sidecar is future scope'], nextAction: undefined }
     : { status: 'BLOCKED_BY_SETUP', works: ['Privacy-first camera UI'], missing: ['Disabled by default'], requiredSetup: 'Enable Live Vision explicitly (camera light shows when active).', nextAction: 'Open Settings → Live Vision' },

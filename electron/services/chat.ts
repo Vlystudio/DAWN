@@ -19,6 +19,9 @@ import notion from './notion';
 import agentos from './agentos';
 import logger from './logger';
 import security from './security/promptSecurity';
+import attachments from './attachments/attachments';
+import visionChat from './vision/visionChat';
+import visionCore from './vision/visionChatCore';
 
 /** Pending PowerShell/web approvals, keyed by callId, resolved from the UI. */
 const pendingApprovals = new Map<string, (approved: boolean) => void>();
@@ -48,6 +51,8 @@ export function getMessages(conversationId: string) {
   return db.all('SELECT * FROM messages WHERE conversation_id=? ORDER BY created_at ASC', [conversationId]).map((m: any) => ({
     ...m,
     citations: m.citations ? safe(m.citations) : null,
+    // SAFE image metadata only (no path/bytes/OCR) so the UI can show attachment cards.
+    attachments: m.has_images ? attachments.listForMessage(m.id) : [],
   }));
 }
 export function createConversation(opts: any = {}) {
@@ -129,6 +134,37 @@ export async function generate(sender: WebContents, conversationId: string) {
   const toolsOn = s.toolsEnabled && (s.powershellEnabled || s.webEnabled || s.fileAgentEnabled || s.downloadEnabled || s.agentosEnabled || s.dcdEnabled || s.codingChatTools);
   if (toolsOn) sysParts.push(toolInstruction(s));
   if (s.fullPowerMode) sysParts.push(FULL_POWER_NOTE);
+
+  // Image attachments on the latest user message -> local vision model, or an HONEST fallback.
+  // We never claim to have seen an image we couldn't: with no vision model we tell the model it
+  // cannot see the image (so it says so). Any real vision output is UNTRUSTED evidence (an image can
+  // contain injection text), so it is wrapped + inspected exactly like memory/RAG — never obeyed.
+  if (lastUser && attachments.messageHasImages(lastUser.id)) {
+    const rows = attachments.internalRows(lastUser.id);
+    const cap = visionChat.capabilities();
+    sender.send('chat:status', { conversationId, status: `Looking at ${rows.length === 1 ? 'your image' : `${rows.length} images`}…`, brain: 'LOOKING' });
+    if (cap.ready && cap.mode === 'vlm') {
+      const analyses: string[] = [];
+      for (const r of rows) {
+        attachments.setStatus(r.id, 'processing');
+        try {
+          const res = await visionChat.analyzeImage(r.storage_path!, lastUser.content || visionCore.DEFAULT_ANALYZE_PROMPT);
+          if (res.ok && res.text) { attachments.setStatus(r.id, 'analyzed', res.text); analyses.push(`Image "${r.display_name}": ${res.text}`); }
+          else attachments.setStatus(r.id, 'failed', res.error);
+        } catch { attachments.setStatus(r.id, 'failed'); }
+      }
+      if (analyses.length) {
+        const ctx = analyses.join('\n\n');
+        security.inspect('image analysis', ctx, 'file', conversationId);
+        untrustedParts.push(security.wrapUntrustedContent(visionCore.analysisLabel('vlm'), ctx, 'file', { maxChars: 9000 }));
+      } else {
+        sysParts.push('You tried to read the user\'s attached image(s) with the local vision model but it failed. Tell them the image analysis failed and to retry or check their vision model — do NOT guess the image contents.');
+      }
+    } else {
+      for (const r of rows) attachments.setStatus(r.id, 'vision_unavailable');
+      sysParts.push(visionCore.unavailableNote(rows.length, cap));
+    }
+  }
 
   // Memory recall -> brain RETRIEVING_MEMORY
   if (conv.use_memory && lastUser) {

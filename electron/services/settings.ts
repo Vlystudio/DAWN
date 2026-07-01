@@ -177,6 +177,10 @@ export interface Settings {
   vlmModelPath: string;             // Qwen2.5-VL GGUF
   vlmMmprojPath: string;            // its mmproj
   visionVlmMode: 'coexist' | 'swap';
+  // --- Chat image attachments (Vision Chat) ---
+  maxImageAttachmentMB: number;     // reject images larger than this (default 10)
+  maxImageDimensionPx: number;      // reject images wider/taller than this (default 4096)
+  maxImagesPerMessage: number;      // cap attachments per message (default 4)
 }
 
 export const DEFAULTS: Settings = {
@@ -337,6 +341,9 @@ export const DEFAULTS: Settings = {
   vlmModelPath: '',
   vlmMmprojPath: '',
   visionVlmMode: 'coexist',
+  maxImageAttachmentMB: 10,
+  maxImageDimensionPx: 4096,
+  maxImagesPerMessage: 4,
 };
 
 let cache: Settings | null = null;

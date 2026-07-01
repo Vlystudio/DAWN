@@ -36,6 +36,8 @@ import notion from './services/notion';
 import piper from './services/piper';
 import kokoro from './services/kokoro';
 import vision from './services/vision';
+import visionChat from './services/vision/visionChat';
+import attachments from './services/attachments/attachments';
 import companion from './services/companion';
 import fileAgent from './services/fileAgent';
 import featureMaturity from './services/featureMaturity';
@@ -80,8 +82,12 @@ export function registerIpc() {
   ipcMain.handle('conv:update', (_e, id, patch) => chat.updateConversation(id, patch || {}));
   ipcMain.handle('conv:delete', (_e, id) => chat.deleteConversation(id));
 
-  ipcMain.handle('chat:send', (e, { conversationId, content }) => {
-    if (content && content.trim()) chat.addMessage(conversationId, 'user', content.trim());
+  ipcMain.handle('chat:send', (e, { conversationId, content, attachmentIds }) => {
+    const hasImages = Array.isArray(attachmentIds) && attachmentIds.length > 0;
+    if ((content && content.trim()) || hasImages) {
+      const mid = chat.addMessage(conversationId, 'user', (content || '').trim());
+      if (hasImages) attachments.attachToMessage(conversationId, mid, attachmentIds);
+    }
     chat.generate(e.sender, conversationId);
     return { ok: true };
   });
@@ -90,6 +96,24 @@ export function registerIpc() {
     return { ok: true };
   });
   ipcMain.handle('chat:stop', (_e, { conversationId }) => chat.stop(conversationId));
+
+  // Chat image attachments (Vision Chat) — paste / upload / drop → local storage + DB
+  ipcMain.handle('chat:attachments:addFromClipboard', (_e, { conversationId, dataUrl, name }) => attachments.addFromDataUrl(conversationId, dataUrl, name));
+  ipcMain.handle('chat:attachments:addFromFile', async (e, { conversationId }) => {
+    const win = BrowserWindow.fromWebContents(e.sender);
+    const res = await dialog.showOpenDialog(win!, { title: 'Attach an image', properties: ['openFile'], filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'] }] });
+    if (res.canceled || !res.filePaths[0]) return { ok: false, canceled: true };
+    return attachments.addFromFile(conversationId, res.filePaths[0]);
+  });
+  ipcMain.handle('chat:attachments:removeDraft', (_e, { id }) => attachments.removeDraft(id));
+  ipcMain.handle('chat:attachments:listDraft', (_e, { conversationId }) => attachments.listDraft(conversationId));
+  ipcMain.handle('chat:attachments:listForMessage', (_e, { messageId }) => attachments.listForMessage(messageId));
+  ipcMain.handle('chat:attachments:getPreview', (_e, { id }) => attachments.preview(id));
+  ipcMain.handle('chat:attachments:getMetadata', (_e, { id }) => attachments.metadata(id));
+  ipcMain.handle('vision:capabilities', () => {
+    const c = visionChat.capabilities(); // sanitized — never expose the CLI/model path
+    return { ready: c.ready, mode: c.mode, status: c.status, reason: c.reason, nextAction: c.nextAction, cliPresent: c.cliPresent, modelConfigured: c.modelConfigured };
+  });
 
   // Memory
   ipcMain.handle('memory:list', () => memory.list());

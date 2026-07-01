@@ -42,6 +42,8 @@
     "electron/services/documents/docCore.ts",
     "electron/services/workspace/wsCore.ts",
     "electron/services/calendar/calCore.ts",
+    "electron/services/attachments/attachmentsCore.ts",
+    "electron/services/vision/visionChatCore.ts",
     "tests/agentos.test.ts",
     "tests/agentosRuntime.test.ts",
     "tests/install.test.ts",
@@ -79,6 +81,7 @@
     "tests/liveHooks.test.ts",
     "tests/statusMap.test.ts",
     "tests/shellLayout.test.ts",
-    "tests/uiMigration.test.ts"
+    "tests/uiMigration.test.ts",
+    "tests/attachments.test.ts"
   ]
 }
