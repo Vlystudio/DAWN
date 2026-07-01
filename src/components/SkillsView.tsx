@@ -4,13 +4,15 @@ import {
   Sparkles, Plus, Trash2, Play, Loader2, AlertTriangle, ShieldAlert, Check, Power,
 } from 'lucide-react';
 import { useBrainStore } from '../state/brainStore';
+import { statusTextClass } from '../lib/statusMap';
 
 /**
  * Skills — user-created automations: an instruction body + a set of allowed tools. The body
  * is untrusted (wrapped by PromptSecurity, never the system prompt). Tool calls are limited
  * to the allowed list and routed through the approval gateway.
  */
-const riskColor: any = { safe: 'text-neural-green', low: 'text-neural-green', medium: 'text-neural-amber', high: 'text-neural-red', critical: 'text-neural-red' };
+// Risk colours derived from the central status map (single source of truth for tool/skill risk).
+const riskColor: any = new Proxy({}, { get: (_t, level: string) => statusTextClass('toolRisk', level) });
 
 export default function SkillsView() {
   const [skills, setSkills] = useState<any[]>([]);

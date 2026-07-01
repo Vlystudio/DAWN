@@ -86,5 +86,18 @@ export function statusLabel(group: StatusGroup, key: any): string { return resol
 export function statusTone(group: StatusGroup, key: any): Tone { return resolveStatus(group, key).tone; }
 export function statusExplain(group: StatusGroup, key: any): string { return resolveStatus(group, key).explain; }
 
+/** A plain text-colour class for a tone (for inline text that isn't a full Badge pill). */
+export function toneTextClass(tone: Tone): string {
+  switch (tone) {
+    case 'ok': case 'safe': case 'low': return 'text-neural-green';
+    case 'warning': case 'medium': case 'locked': return 'text-neural-amber';
+    case 'error': case 'high': case 'critical': return 'text-neural-red';
+    case 'encrypted': return 'text-neural-cyan';
+    default: return 'text-faint';
+  }
+}
+/** Text-colour class for a status in a group (one source of truth for inline status text). */
+export function statusTextClass(group: StatusGroup, key: any): string { return toneTextClass(resolveStatus(group, key).tone); }
+
 export const STATUS_GROUPS = GROUPS;
-export default { resolveStatus, statusLabel, statusTone, statusExplain, STATUS_GROUPS };
+export default { resolveStatus, statusLabel, statusTone, statusExplain, toneTextClass, statusTextClass, STATUS_GROUPS };

@@ -7,7 +7,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert';
-import sm, { resolveStatus, statusLabel, statusTone, STATUS_GROUPS } from '../src/lib/statusMap';
+import sm, { resolveStatus, statusLabel, statusTone, statusTextClass, toneTextClass, STATUS_GROUPS } from '../src/lib/statusMap';
 import ui from '../src/lib/uiCore';
 import fm from '../electron/services/featureMaturityCore';
 
@@ -48,6 +48,16 @@ test('no duplicate canonical keys within a group (key === def.key)', () => {
   for (const [group, map] of Object.entries(STATUS_GROUPS)) {
     for (const [key, def] of Object.entries(map)) assert.equal(def.key, key, `${group} key/def mismatch for ${key}`);
   }
+});
+
+test('derived risk text-colours exactly match the previous SkillsView mapping (no visual regression)', () => {
+  // old SkillsView.riskColor literal, now derived from the central map:
+  const old: Record<string, string> = { safe: 'text-neural-green', low: 'text-neural-green', medium: 'text-neural-amber', high: 'text-neural-red', critical: 'text-neural-red' };
+  for (const level of Object.keys(old)) assert.equal(statusTextClass('toolRisk', level), old[level], `risk colour for ${level} changed`);
+  assert.equal(toneTextClass('ok'), 'text-neural-green');
+  assert.equal(toneTextClass('warning'), 'text-neural-amber');
+  assert.equal(toneTextClass('error'), 'text-neural-red');
+  assert.equal(statusTextClass('toolRisk', 'unknownlevel'), 'text-faint', 'unknown risk → neutral, never crash');
 });
 
 test('System Health: Status Language is COMPLETE; Design System stays PARTIAL', () => {

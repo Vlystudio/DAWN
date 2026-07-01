@@ -57,3 +57,17 @@ Adopted by: `StatusBadge` (`ui/system.tsx`), **System Health**, **Setup Center**
 and **Model Cookbook** — so a status means the same thing (and looks the same) everywhere. Screens
 still to adopt it are the legacy screens tracked under **Design System → Partial** in System Health.
 Tests: `tests/statusMap.test.ts` (valid tones, documented statuses, safe Unknown, no dup keys).
+
+## Risk colours from the central map
+
+Tool/Skill **risk** colours are now derived from the central status map's `toolRisk` tones
+(`statusTextClass('toolRisk', level)`) instead of a duplicated per-screen literal — one source of
+truth. A regression test asserts the derived colours are byte-identical to the previous mapping.
+
+### Migration note (honest)
+
+Legacy screens with **split / flex-1-scroll layouts** (e.g. Logs' fixed-header + scrolling log box,
+the master–detail Research/Documents/Skills views) are **not** blindly wrapped in `PageShell` — doing
+so changes their scroll/split behaviour, which needs visual verification. Those migrations are done
+one screen at a time with a human in the loop; System Health keeps **Design System → Partial** with
+the exact list until then. The status-language layer (labels, tones, risk colours) is already unified.
