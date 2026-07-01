@@ -22,7 +22,12 @@ export function decide(embeddingsAvailable: boolean): { mode: RerankMode; reason
   });
 }
 
-/** Status snapshot for System Health / debug (no paths). */
+/**
+ * Reranker provider status. Cross-encoder is reported honestly as NEEDS_SETUP — DAWN does not bundle a
+ * cross-encoder (onnxruntime-node is a heavy/brittle native dep to package; a GGUF reranker via a second
+ * llama-server `--reranking` instance is the real future path, like the vision runtime). Today the real
+ * local rerank is embedding-similarity; heuristic is the no-embeddings fallback. No fake scores.
+ */
 export function status() {
   const s: any = settings.get();
   const d = decide(true); // report the mode assuming embeddings exist (the common case)
@@ -33,6 +38,10 @@ export function status() {
     label: core.modeLabel(s.rerankerEnabled ? d.mode : 'disabled'),
     reason: d.reason,
     maxCandidates: Number(s.maxRerankCandidates) > 0 ? Number(s.maxRerankCandidates) : 20,
+    provider: {
+      crossEncoder: { available: false, status: 'NEEDS_SETUP', reason: 'No cross-encoder ships (onnxruntime-node not bundled; a GGUF reranker via a second llama-server is the real future path).' },
+      embeddingSimilarity: { available: true, status: 'READY', reason: 'Real local rerank by embedding cosine over the top candidates.' },
+    },
   };
 }
 

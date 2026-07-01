@@ -87,7 +87,9 @@ export interface MaturitySignals {
   rerankerEnabled?: boolean; rerankerConfigured?: boolean; rerankMode?: string;
   entailmentEnabled?: boolean;
   ragEvalLastRunAt?: number; ragEvalCases?: number; ragEvalHitRate?: number | null; ragEvalGroundedness?: number | null;
-  ragEvalFixtureCount?: number; ragEvalNegativesLeaked?: number;
+  ragEvalFixtureCount?: number; ragEvalNegativesLeaked?: number; ragEvalBestStrategy?: string | null;
+  chunkStrategyVersion?: string; sourcesNeedReindex?: number;
+  helperModelsConfigured?: number; helperChatFallback?: boolean;
 }
 
 const n = (x?: number) => (typeof x === 'number' && isFinite(x) ? x : 0);
@@ -109,7 +111,8 @@ export const FEATURE_AREAS: FeatureArea[] = [
   { id: 'knowledge_safety', name: 'Knowledge Safety', group: 'Knowledge', route: 'localknowledge', docs: 'LOCAL_KNOWLEDGE.md', summary: 'Protected-path skipping with reasons; no secrets indexed.' },
   { id: 'hybrid_retrieval', name: 'Hybrid Retrieval', group: 'Knowledge', route: 'localknowledge', docs: 'LOCAL_KNOWLEDGE.md', summary: 'Vector + BM25 keyword fusion with honest fallback + rerank/rewrite status.' },
   { id: 'answer_verification', name: 'Answer Verification', group: 'Knowledge', route: 'localknowledge', docs: 'ANSWER_VERIFICATION.md', summary: 'Groundedness check of RAG answers (no faked support).' },
-  { id: 'rag_eval', name: 'RAG Eval Harness', group: 'Knowledge', route: 'localknowledge', docs: 'EVALS.md', summary: 'Local retrieval + grounding metrics over a fixed set.' },
+  { id: 'rag_eval', name: 'RAG Eval Harness', group: 'Knowledge', route: 'localknowledge', docs: 'EVALS.md', summary: 'Local retrieval + grounding metrics + strategy comparison.' },
+  { id: 'retrieval_helpers', name: 'Retrieval Helper Models', group: 'Knowledge', route: 'localknowledge', settingsRoute: 'cookbook', docs: 'MODELS.md', summary: 'Dedicated model slots for rewrite/HyDE/entailment/rerank.' },
   { id: 'research', name: 'Deep Research', group: 'Core', route: 'research', docs: 'RESEARCH.md', summary: 'Plan → search → cite → report.' },
   { id: 'compare', name: 'Model Compare / Arena', group: 'Models', route: 'compare', docs: 'COMPARE.md', summary: 'Head-to-head model comparison + judge.' },
   { id: 'documents', name: 'Documents', group: 'Workspace', route: 'documents', docs: 'WORKSPACE.md', summary: 'Markdown docs + AI actions + versions.' },
@@ -176,8 +179,10 @@ const EVAL: Record<string, Evaluator> = {
     const works = [
       'Vector (local embeddings) + BM25 keyword, fused with reciprocal-rank fusion; deduped; skipped/removed sources excluded; stale kept + flagged',
       'Honest mode label per query (hybrid / vector / keyword / unavailable) — real keyword search, no faked scores',
+      `Chunking ${s.chunkStrategyVersion || 'v2'}: heading/title-aware, code-block-preserving, real line numbers + section paths (never faked pages)`,
     ];
     const missing: string[] = [];
+    if (n(s.sourcesNeedReindex) > 0) missing.push(`${n(s.sourcesNeedReindex)} source(s) still use old chunking — reindex in Local Knowledge to upgrade to ${s.chunkStrategyVersion || 'v2'}`);
     const rm = s.rerankMode || 'disabled';
     if (rm === 'cross_encoder') works.push('Reranker: cross-encoder (local)');
     else if (rm === 'embedding') works.push('Reranker: embedding-similarity rerank (local, real) — no cross-encoder shipped, never faked');
@@ -211,6 +216,23 @@ const EVAL: Record<string, Evaluator> = {
       ],
       missing: ran ? (n(s.ragEvalNegativesLeaked) > 0 ? [`${n(s.ragEvalNegativesLeaked)} negative claim(s) leaked — a real regression`] : []) : ['Not run in this install yet — run it from Local Knowledge or npm run eval:rag'],
       nextAction: ran ? undefined : 'Run the RAG eval (in-app or npm run eval:rag)',
+    };
+  },
+  retrieval_helpers: (s) => {
+    // DAWN runs one llama-server at a time, so helper slots are config + honest routing: a configured
+    // helper is only used directly when it IS the loaded model; else it falls back to the chat model.
+    const cfg = n(s.helperModelsConfigured);
+    return {
+      status: 'PARTIAL' as MaturityStatus,
+      works: [
+        'Dedicated helper slots + Model Cookbook roles for query rewrite / HyDE / entailment / rerank',
+        `Currently ${cfg} helper slot(s) configured; chat-model fallback ${yes(s.helperChatFallback) ? 'ON' : 'OFF'}`,
+        'Helper outputs stay untrusted (never cited, never trigger tools); prompts/responses not logged to diagnostics',
+      ],
+      missing: [
+        'DAWN runs ONE model at a time, so a configured helper is used directly only when it is the loaded model; otherwise it honestly falls back to the chat model. A dedicated helper runtime (second llama-server) is a future loop — not faked.',
+      ],
+      nextAction: 'Pick helper models in Model Cookbook (or leave empty to use the chat model)',
     };
   },
   research: (s) => ({ status: n(s.researchRuns) > 0 ? 'COMPLETE' : 'PARTIAL', works: ['Plan → search → cited report', 'Untrusted-source firewall', 'Web off by default'], missing: n(s.researchRuns) > 0 ? [] : ['No research runs yet'], nextAction: n(s.researchRuns) > 0 ? undefined : 'Start a research run' }),

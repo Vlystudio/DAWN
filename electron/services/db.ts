@@ -358,7 +358,12 @@ function migrate() {
   // the lifecycle. Only columns actually written/read below are added.
   ensureColumns('knowledge_sources', {
     state: 'TEXT', skipped_reason: 'TEXT', error_message: 'TEXT', size_bytes: 'INTEGER',
-    indexed_at: 'INTEGER', updated_at: 'INTEGER', src_mtime: 'INTEGER',
+    indexed_at: 'INTEGER', updated_at: 'INTEGER', src_mtime: 'INTEGER', chunk_strategy: 'TEXT',
+  });
+  // Chunking v2: title/heading-aware chunk metadata (old chunks keep NULLs and read fine).
+  ensureColumns('knowledge_chunks', {
+    chunk_title: 'TEXT', parent_heading: 'TEXT', section_path: 'TEXT',
+    start_line: 'INTEGER', end_line: 'INTEGER', chunk_strategy: 'TEXT',
   });
   // Chat image attachments (Vision Chat): flag messages that carry images.
   ensureColumns('messages', { has_images: 'INTEGER DEFAULT 0', attachment_count: 'INTEGER DEFAULT 0' });

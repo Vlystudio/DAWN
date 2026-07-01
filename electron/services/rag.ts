@@ -18,6 +18,7 @@ import citationCore from './knowledge/citationCore';
 import stale_ from './knowledge/knowledgeStaleCore';
 import live from './workspace/liveHooks';
 import { chunkText } from './chunk';
+import chunkingCore from './knowledge/chunkingCore';
 
 /**
  * rag.ts — local knowledge / retrieval. Indexes ONLY user-approved folders,
@@ -153,18 +154,23 @@ class Rag extends EventEmitter {
         db.run('DELETE FROM knowledge_chunks WHERE source_id=?', [existing.id]);
         db.run('DELETE FROM knowledge_sources WHERE id=?', [existing.id]);
       }
-      const chunks = chunkText(text, { size: s.chunkSize, overlap: s.chunkOverlap });
+      // Chunking v2: heading/title-aware with real metadata (falls back to plain paragraphs on failure).
+      let chunks: any[];
+      try { chunks = chunkingCore.chunkV2(text, { size: s.chunkSize, overlap: s.chunkOverlap }); }
+      catch { chunks = chunkText(text, { size: s.chunkSize, overlap: s.chunkOverlap }).map((t: string, i: number) => ({ text: t, index: i, chunkTitle: '', parentHeading: '', sectionPath: '', startLine: 0, endLine: 0 })); }
       if (!chunks.length) return;
       const sourceId = newId();
       let size = 0; try { size = fs.statSync(file).size; } catch { /* */ }
       const now = Date.now();
-      db.run('INSERT INTO knowledge_sources (id,path,name,kind,status,added_at,state,size_bytes,indexed_at,updated_at,src_mtime) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
-        [sourceId, file, name, 'file', hash, now, 'indexed', size, now, now, mtime || 0]);
+      db.run('INSERT INTO knowledge_sources (id,path,name,kind,status,added_at,state,size_bytes,indexed_at,updated_at,src_mtime,chunk_strategy) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
+        [sourceId, file, name, 'file', hash, now, 'indexed', size, now, now, mtime || 0, chunkingCore.CHUNK_STRATEGY_VERSION]);
       live.register('knowledge_source', sourceId, name, 'knowledge'); // live workspace registration (name only, no path)
       for (let i = 0; i < chunks.length; i++) {
-        const vec = await embeddings.embed(chunks[i]);
-        db.run('INSERT INTO knowledge_chunks (id,source_id,path,name,chunk_index,content,hash,embedding) VALUES (?,?,?,?,?,?,?,?)', [
-          newId(), sourceId, file, name, i, chunks[i], hash, db.encodeVec(vec),
+        const c = chunks[i];
+        const vec = await embeddings.embed(c.text);
+        db.run('INSERT INTO knowledge_chunks (id,source_id,path,name,chunk_index,content,hash,embedding,chunk_title,parent_heading,section_path,start_line,end_line,chunk_strategy) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)', [
+          newId(), sourceId, file, name, i, c.text, hash, db.encodeVec(vec),
+          c.chunkTitle || null, c.parentHeading || null, c.sectionPath || null, c.startLine || null, c.endLine || null, chunkingCore.CHUNK_STRATEGY_VERSION,
         ]);
       }
     } catch (e: any) {
@@ -294,6 +300,38 @@ class Rag extends EventEmitter {
     try { embedded = db.get<{ c: number }>('SELECT COUNT(*) c FROM knowledge_chunks WHERE embedding IS NOT NULL')!.c; } catch { /* */ }
     const mode = total === 0 ? 'unavailable' : embedded > 0 ? 'hybrid' : 'keyword';
     return { mode, totalChunks: total, embeddedChunks: embedded, reason: hybridCore.modeReason(mode as any, embedded, total) };
+  }
+
+  /** Chunking-version reindex info (which sources use an old chunking strategy). Safe counts only. */
+  reindexInfo() {
+    const V = chunkingCore.CHUNK_STRATEGY_VERSION;
+    let total = 0, need = 0;
+    try { total = db.get<{ c: number }>("SELECT COUNT(*) c FROM knowledge_sources WHERE state IS NULL OR state IN ('indexed','stale')")!.c; } catch { /* */ }
+    try { need = db.get<{ c: number }>("SELECT COUNT(*) c FROM knowledge_sources WHERE (chunk_strategy IS NULL OR chunk_strategy!=?) AND (state IS NULL OR state IN ('indexed','stale'))", [V])!.c; } catch { /* */ }
+    return { strategyVersion: V, totalSources: total, needReindex: need };
+  }
+
+  /**
+   * Reindex sources using an old chunking strategy: for each, re-apply the safety guard, then delete +
+   * re-index with v2. Sources whose file is gone or now blocked are skipped honestly (old index removed).
+   */
+  async reindexOutdated() {
+    const V = chunkingCore.CHUNK_STRATEGY_VERSION;
+    const s = settings.get();
+    const safety = require('./safety').default;
+    let rows: any[] = [];
+    try { rows = db.all("SELECT id,path,name,src_mtime FROM knowledge_sources WHERE (chunk_strategy IS NULL OR chunk_strategy!=?) AND (state IS NULL OR state IN ('indexed','stale'))", [V]); } catch { rows = []; }
+    let reindexed = 0, failed = 0, skipped = 0;
+    for (const r of rows) {
+      try {
+        if (!fs.existsSync(r.path) || safety.isBlockedFile(r.path, undefined)) { skipped++; continue; } // guard re-applied
+        db.run('DELETE FROM knowledge_chunks WHERE source_id=?', [r.id]);
+        db.run('DELETE FROM knowledge_sources WHERE id=?', [r.id]);
+        await this.indexFile(r.path, r.name, r.src_mtime || 0, s);
+        reindexed++;
+      } catch { failed++; }
+    }
+    return { ok: true, reindexed, failed, skipped };
   }
 
   status() {

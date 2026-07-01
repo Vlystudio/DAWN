@@ -58,3 +58,10 @@ The dev set isn't bundled into the installed app, so DAWN embeds a small **publi
 **Local Knowledge → Retrieval quality → Run eval** runs it in-app (deterministic, offline, no model/
 network, no user files), persists to userData, and System Health → **RAG Eval Harness** reflects the last
 run (hit-rate, groundedness, negatives-leaked). So the installed app reports **real** numbers after Run.
+
+## Strategy comparison
+
+`Run eval` (and `npm run eval:rag`) now also produces a **strategy comparison** table. The offline fixture
+has no embeddings and no model, so only **keyword** is actually computed; **vector / hybrid / hybrid+rewrite
+/ hybrid+HyDE / hybrid+rerank** are marked **unavailable** with a real reason (never a fabricated win). The
+best available strategy is highlighted. On a live index with embeddings, vector/hybrid become comparable.

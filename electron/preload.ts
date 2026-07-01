@@ -42,6 +42,8 @@ const api = {
     rerankerStatus: () => ipcRenderer.invoke('rag:rerankerStatus'),
     evalStatus: () => ipcRenderer.invoke('rag:evalStatus'),
     runEval: () => ipcRenderer.invoke('rag:runEval'),
+    reindexInfo: () => ipcRenderer.invoke('rag:reindexInfo'),
+    reindexOutdated: () => ipcRenderer.invoke('rag:reindexOutdated'),
   },
   setup: {
     complete: (patch: any) => ipcRenderer.invoke('setup:complete', patch),

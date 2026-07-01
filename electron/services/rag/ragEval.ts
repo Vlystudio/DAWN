@@ -12,12 +12,13 @@ import logger from '../logger';
 
 function resultsPath(): string { return path.join(app.getPath('userData'), 'rag-eval-results.json'); }
 
-export function run(): { ok: boolean; summary?: any; scores?: any[]; error?: string } {
+export function run(): { ok: boolean; summary?: any; scores?: any[]; strategies?: any; error?: string } {
   try {
     const { summary, scores } = core.runEval(fixture.cases);
-    fs.writeFileSync(resultsPath(), JSON.stringify({ summary, scores, fixtureCount: fixture.cases.length }, null, 2));
+    const strategies = core.compareStrategies(fixture.cases);
+    fs.writeFileSync(resultsPath(), JSON.stringify({ summary, scores, strategies, fixtureCount: fixture.cases.length }, null, 2));
     logger.info('rag', `RAG eval run: ${summary.valid}/${summary.cases} valid, hit-rate ${summary.retrievalHitRate}, negatives ${summary.negativesLeaked}`);
-    return { ok: true, summary, scores };
+    return { ok: true, summary, scores, strategies };
   } catch (e: any) {
     return { ok: false, error: String(e?.message || e).slice(0, 200) };
   }
@@ -26,7 +27,7 @@ export function run(): { ok: boolean; summary?: any; scores?: any[]; error?: str
 export function status() {
   const s: any = { fixtureAvailable: fixture.cases.length > 0, fixtureCount: fixture.cases.length, hasRun: false };
   try {
-    if (fs.existsSync(resultsPath())) { const j = JSON.parse(fs.readFileSync(resultsPath(), 'utf8')); s.hasRun = true; s.summary = j.summary; }
+    if (fs.existsSync(resultsPath())) { const j = JSON.parse(fs.readFileSync(resultsPath(), 'utf8')); s.hasRun = true; s.summary = j.summary; s.strategies = j.strategies; }
   } catch { /* not run yet */ }
   return s;
 }

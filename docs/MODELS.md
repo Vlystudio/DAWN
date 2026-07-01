@@ -91,3 +91,12 @@ The Model Cookbook tracks a `reranker` role for an optional local cross-encoder 
 chunks. Until one is configured (`rerankerModelPath`), DAWN uses honest **heuristic hybrid ranking**
 (reciprocal-rank fusion + title boost) and never claims cross-encoder reranking. See
 [LOCAL_KNOWLEDGE.md](LOCAL_KNOWLEDGE.md).
+
+### Retrieval helper roles + cross-encoder reranker status
+
+Cookbook roles now include **query_rewriter / hyde_generator / entailment_verifier** (+ **reranker**). DAWN
+runs one model at a time, so helper slots use the loaded chat model unless the configured helper *is* the
+loaded model (honest fallback; see System Health → Retrieval Helper Models). **Cross-encoder reranker:**
+none ships — `onnxruntime-node` is a heavy/brittle native dependency to bundle, and a GGUF reranker via a
+second `llama-server --reranking` instance is the real future path. Today the real local rerank is
+**embedding-similarity**; System Health reports cross-encoder as **NEEDS SETUP**, never faked.

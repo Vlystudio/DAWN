@@ -198,6 +198,8 @@ export function registerIpc() {
   ipcMain.handle('rag:rerankerStatus', () => require('./services/rag/reranker').default.status());
   ipcMain.handle('rag:evalStatus', () => require('./services/rag/ragEval').default.status());
   ipcMain.handle('rag:runEval', () => require('./services/rag/ragEval').default.run());
+  ipcMain.handle('rag:reindexInfo', () => rag.reindexInfo());
+  ipcMain.handle('rag:reindexOutdated', () => rag.reindexOutdated());
   ipcMain.handle('rag:pickFolder', async (e) => {
     const win = BrowserWindow.fromWebContents(e.sender);
     const res = await dialog.showOpenDialog(win!, { title: 'Choose a folder to index', properties: ['openDirectory'] });

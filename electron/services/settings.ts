@@ -82,6 +82,8 @@ export interface Settings {
   rerankerModelPath: string;
   maxRerankCandidates: number;
   rerankTimeoutMs: number;
+  // Dedicated retrieval helper model slots (single-runtime aware; empty = use loaded chat model)
+  helperModels: { queryRewriteModel: string; hydeModel: string; entailmentModel: string; rerankerModel: string; preferChatModelFallback: boolean; timeoutMs: number; maxTokens: number };
   chunkOverlap: number;
 
   // --- Voice (local TTS) ---
@@ -273,6 +275,7 @@ export const DEFAULTS: Settings = {
   rerankerModelPath: '',
   maxRerankCandidates: 20,
   rerankTimeoutMs: 8000,
+  helperModels: { queryRewriteModel: '', hydeModel: '', entailmentModel: '', rerankerModel: '', preferChatModelFallback: true, timeoutMs: 8000, maxTokens: 200 },
   chunkSize: 1200,
   chunkOverlap: 200,
 

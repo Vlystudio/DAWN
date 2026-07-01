@@ -51,6 +51,8 @@
     "electron/services/rag/rerankerCore.ts",
     "electron/services/rag/entailmentCore.ts",
     "electron/services/rag/ragEvalFixture.ts",
+    "electron/services/rag/helperModelCore.ts",
+    "electron/services/knowledge/chunkingCore.ts",
     "tests/agentos.test.ts",
     "tests/agentosRuntime.test.ts",
     "tests/install.test.ts",

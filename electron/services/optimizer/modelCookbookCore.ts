@@ -6,11 +6,12 @@
  */
 
 /** Canonical roles the cookbook reasons about. */
-export const ROLES = ['fast', 'coding', 'reasoning', 'research', 'long_context', 'embeddings', 'vision', 'reranker'] as const;
+export const ROLES = ['fast', 'coding', 'reasoning', 'research', 'long_context', 'embeddings', 'vision', 'reranker', 'query_rewriter', 'hyde_generator', 'entailment_verifier'] as const;
 export type Role = typeof ROLES[number];
 export const ROLE_LABELS: Record<Role, string> = {
   fast: 'Fast chat', coding: 'Coding', reasoning: 'Reasoning', research: 'Research',
   long_context: 'Long context', embeddings: 'Embeddings', vision: 'Vision', reranker: 'Reranker',
+  query_rewriter: 'Query rewrite', hyde_generator: 'HyDE', entailment_verifier: 'Entailment',
 };
 
 const ROLE_ALIASES: Record<string, Role> = {
@@ -22,6 +23,8 @@ const ROLE_ALIASES: Record<string, Role> = {
   embedding: 'embeddings', embeddings: 'embeddings', embed: 'embeddings',
   vision: 'vision', vlm: 'vision', multimodal: 'vision',
   reranker: 'reranker', rerank: 'reranker', 'cross-encoder': 'reranker',
+  query_rewriter: 'query_rewriter', hyde: 'hyde_generator', hyde_generator: 'hyde_generator',
+  entailment: 'entailment_verifier', entailment_verifier: 'entailment_verifier',
 };
 
 /** Normalize a raw roles array (from the catalog or a model category) into canonical roles. */

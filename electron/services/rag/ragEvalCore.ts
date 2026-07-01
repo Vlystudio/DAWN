@@ -102,4 +102,44 @@ export function runEval(cases: EvalCase[], topK = 5): { summary: EvalSummary; sc
   return { summary, scores };
 }
 
-export default { scoreCase, runEval };
+// --- retrieval-strategy comparison (Loop 111) -------------------------------
+
+export interface StrategyResult {
+  strategy: string; available: boolean; reason?: string;
+  retrievalHitRate: number | null; top1HitRate: number | null; cases: number;
+}
+
+function scoreKeywordStrategy(cases: EvalCase[], topK: number): StrategyResult {
+  const valid = (cases || []).filter((c) => c.expectedSourceIds?.length && Array.isArray(c.corpus) && c.corpus.length && c.question);
+  if (!valid.length) return { strategy: 'keyword', available: false, reason: 'no cases with expected sources', retrievalHitRate: null, top1HitRate: null, cases: 0 };
+  let hit = 0, top1 = 0;
+  for (const c of valid) {
+    const { results } = hybridRank(c.corpus.map((d) => ({ id: d.id, name: d.name, text: d.text, vectorScore: null })), c.question, { topK });
+    const ids = results.map((r) => r.id);
+    if (c.expectedSourceIds!.some((id) => ids.includes(id))) hit++;
+    if (ids[0] && c.expectedSourceIds!.includes(ids[0])) top1++;
+  }
+  return { strategy: 'keyword', available: true, retrievalHitRate: Number((hit / valid.length).toFixed(3)), top1HitRate: Number((top1 / valid.length).toFixed(3)), cases: valid.length };
+}
+
+/**
+ * Compare retrieval strategies over the fixture. HONEST: the offline fixture has no embeddings and no
+ * model, so only KEYWORD is actually computed; vector/hybrid/rewrite/HyDE/rerank/verification are marked
+ * unavailable with a real reason (never a fabricated win).
+ */
+export function compareStrategies(cases: EvalCase[], topK = 5): { strategies: StrategyResult[]; best: string | null; ranAt: number } {
+  const kw = scoreKeywordStrategy(cases, topK);
+  const strategies: StrategyResult[] = [
+    kw,
+    { strategy: 'vector', available: false, reason: 'no embeddings in the offline fixture', retrievalHitRate: null, top1HitRate: null, cases: 0 },
+    { strategy: 'hybrid', available: false, reason: 'no embeddings in the offline fixture (hybrid == keyword here)', retrievalHitRate: null, top1HitRate: null, cases: 0 },
+    { strategy: 'hybrid+rewrite', available: false, reason: 'needs the local model', retrievalHitRate: null, top1HitRate: null, cases: 0 },
+    { strategy: 'hybrid+hyde', available: false, reason: 'needs the local model', retrievalHitRate: null, top1HitRate: null, cases: 0 },
+    { strategy: 'hybrid+rerank', available: false, reason: 'needs embeddings + a reranker', retrievalHitRate: null, top1HitRate: null, cases: 0 },
+  ];
+  const avail = strategies.filter((s) => s.available && s.retrievalHitRate != null);
+  const best = avail.length ? avail.slice().sort((a, b) => (b.retrievalHitRate! - a.retrievalHitRate!))[0].strategy : null;
+  return { strategies, best, ranAt: Date.now() };
+}
+
+export default { scoreCase, runEval, compareStrategies };

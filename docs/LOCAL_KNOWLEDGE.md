@@ -158,3 +158,24 @@ After hybrid retrieval, an honest rerank stage reorders the top `maxRerankCandid
 Expand the grounding line under a chat answer to see the retrieval trace: **mode** (hybrid/vector/
 keyword), **rerank** mode, **rewrite/HyDE** status, and the rewritten query variants — names/modes only,
 never paths or chunk text. Local Knowledge shows the reranker mode + the in-app **RAG eval**.
+
+## Chunking v2 (title/heading-aware) + reindex
+
+Indexing now uses **chunking v2** (`knowledge/chunkingCore.ts`): Markdown **heading-aware** sections with a
+**section path** breadcrumb + parent heading, **paragraph-aware** grouping, **code blocks preserved** as
+one chunk (never split mid-fence), block-level **overlap**, and **real** start/end line numbers. It never
+invents page numbers, headings, or line numbers. Each chunk stores `chunk_title / parent_heading /
+section_path / start_line / end_line / chunk_strategy`; old (v1) chunks keep NULLs and **still read fine**.
+
+Upgrading old sources needs a **reindex** (chunk shape changes). Local Knowledge → Retrieval quality shows
+how many sources are on old chunking and a **Reindex** button; System Health → Hybrid Retrieval lists the
+count. Reindex re-applies the safety guard per source (a now-blocked/missing file is skipped, its old index
+removed) and updates `chunk_strategy` to the current version. Retrieval + citations are unchanged in shape.
+
+## Retrieval helper model slots
+
+Model Cookbook exposes roles for **query rewrite / HyDE / entailment / reranker** and settings
+(`helperModels.*`) let you pick a model per task. **Honest constraint:** DAWN runs **one** llama-server at
+a time, so a configured helper is used *directly* only when it **is** the loaded model; otherwise it falls
+back to the loaded chat model (if `preferChatModelFallback`) or skips — reported in System Health →
+Retrieval Helper Models. A dedicated second helper runtime is a future loop (not faked).

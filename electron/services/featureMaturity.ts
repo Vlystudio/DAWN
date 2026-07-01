@@ -57,6 +57,11 @@ export function gatherSignals(): MaturitySignals {
   } catch { /* */ }
   let rerankMode = 'disabled';
   try { rerankMode = require('./rag/reranker').default.status().mode || 'disabled'; } catch { /* */ }
+  let chunkStrategyVersion = 'v2', sourcesNeedReindex = 0;
+  try { const info = require('./rag').default.reindexInfo(); chunkStrategyVersion = info.strategyVersion; sourcesNeedReindex = info.needReindex; } catch { /* */ }
+  const helperCfg = (() => { const h: any = s.helperModels || {}; return { configured: ['queryRewriteModel', 'hydeModel', 'entailmentModel', 'rerankerModel'].filter((k) => h[k]).length, fallback: h.preferChatModelFallback !== false }; })();
+  let ragEvalBestStrategy: string | null = null;
+  try { const est = require('./rag/ragEval').default.status(); ragEvalBestStrategy = est?.strategies?.best ?? null; } catch { /* */ }
 
   let visionMmprojConfigured = false, visionSetupState = 'not_configured';
   try { const vc = require('./vision/visionChat').default; const c = vc.capabilities ? vc.capabilities() : null; if (c) { visionChatReady = !!c.ready; visionChatMode = c.mode || 'none'; visionChatReason = c.reason || ''; visionChatNextAction = c.nextAction || ''; visionModelConfigured = !!c.modelConfigured; visionCliPresent = !!c.cliPresent; } const v = vc.validate ? vc.validate() : null; if (v) { visionMmprojConfigured = !!v.mmprojConfigured; visionSetupState = v.state || 'not_configured'; } } catch { /* */ }
@@ -114,7 +119,9 @@ export function gatherSignals(): MaturitySignals {
     entailmentEnabled: !!s.entailmentEnabled,
     queryRewriteEnabled: !!s.queryRewriteEnabled, hydeEnabled: !!s.hydeEnabled,
     rerankerEnabled: !!s.rerankerEnabled, rerankerConfigured: !!(s.rerankerEnabled && s.rerankerModelPath), rerankMode,
-    ragEvalLastRunAt, ragEvalCases, ragEvalHitRate, ragEvalGroundedness, ragEvalFixtureCount, ragEvalNegativesLeaked,
+    ragEvalLastRunAt, ragEvalCases, ragEvalHitRate, ragEvalGroundedness, ragEvalFixtureCount, ragEvalNegativesLeaked, ragEvalBestStrategy,
+    chunkStrategyVersion, sourcesNeedReindex,
+    helperModelsConfigured: helperCfg.configured, helperChatFallback: helperCfg.fallback,
   };
 }
 

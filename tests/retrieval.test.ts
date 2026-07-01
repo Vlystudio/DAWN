@@ -13,6 +13,8 @@ import qx from '../electron/services/rag/queryExpansionCore';
 import rk from '../electron/services/rag/rerankerCore';
 import en from '../electron/services/rag/entailmentCore';
 import fixture from '../electron/services/rag/ragEvalFixture';
+import ck from '../electron/services/knowledge/chunkingCore';
+import hm from '../electron/services/rag/helperModelCore';
 
 // --- hybrid retrieval (Loop 94) ---------------------------------------------
 const DOCS = [
@@ -154,4 +156,51 @@ test('parseEntailment maps verdicts; UNSUPPORTED is not read as SUPPORTED; junk 
   assert.equal(en.parseEntailment('PARTIAL, some overlap').support, 'partially_supported');
   assert.equal(en.parseEntailment('NONE — not enough info').support, 'not_enough_evidence');
   assert.equal(en.parseEntailment('the weather is nice').support, null, 'unparseable → null so caller keeps lexical');
+});
+
+// --- chunking v2 (Loop 109) -------------------------------------------------
+test('chunkV2: heading/title-aware — section path + parent heading + real line numbers', () => {
+  const md = '# Guide\n\nIntro paragraph about setup.\n\n## Install\n\nRun the installer and follow prompts.\n\n## Usage\n\nOpen the app and sign in.';
+  const chunks = ck.chunkV2(md, { size: 400, overlap: 0 });
+  assert.ok(chunks.length >= 2);
+  const install = chunks.find((c) => /installer/.test(c.text))!;
+  assert.equal(install.parentHeading, 'Install');
+  assert.equal(install.sectionPath, 'Guide > Install');
+  assert.ok(install.startLine > 0 && install.endLine >= install.startLine, 'real line numbers');
+  assert.equal(install.strategyVersion, 'v2');
+  // no faked page numbers exist on the chunk
+  assert.ok(!('page_number' in install) && !('pageNumber' in (install as any)));
+});
+test('chunkV2 preserves a code block as one chunk (never split mid-fence)', () => {
+  const md = '# Code\n\n```js\nconst a = 1;\nconst b = 2;\nconsole.log(a + b);\n```\n\nAfter.';
+  const chunks = ck.chunkV2(md, { size: 60, overlap: 0 });
+  const code = chunks.find((c) => c.text.includes('```'))!;
+  assert.ok(code.text.includes('const a = 1;') && code.text.includes('console.log(a + b);'), 'code fence stays intact');
+});
+test('chunkV2 handles plain text + empty; needsReindex honest', () => {
+  assert.deepEqual(ck.chunkV2('', {}), []);
+  assert.ok(ck.chunkV2('Just a paragraph of text with several words here.', { size: 400 }).length === 1);
+  assert.equal(ck.needsReindex('v1'), true);
+  assert.equal(ck.needsReindex(null), true);
+  assert.equal(ck.needsReindex(ck.CHUNK_STRATEGY_VERSION), false);
+});
+
+// --- eval strategy comparison (Loop 111) ------------------------------------
+test('compareStrategies: keyword is computed; vector/hybrid/model strategies honestly unavailable', () => {
+  const r = ev.compareStrategies(fixture.cases);
+  const kw = r.strategies.find((s) => s.strategy === 'keyword')!;
+  assert.equal(kw.available, true);
+  assert.ok(kw.retrievalHitRate !== null);
+  assert.equal(r.strategies.find((s) => s.strategy === 'vector')!.available, false);
+  assert.ok(r.strategies.find((s) => s.strategy === 'hybrid')!.reason!.length > 0);
+  assert.equal(r.best, 'keyword');
+});
+
+// --- helper model slots (Loop 108) ------------------------------------------
+test('resolveHelper: single-runtime honesty (no fake concurrent helper)', () => {
+  assert.equal(hm.resolveHelper({ helperModelPath: '', loadedModelPath: 'chat.gguf', loadedReady: true, preferChatFallback: true }).source, 'chat');
+  assert.equal(hm.resolveHelper({ helperModelPath: 'c:/m/chat.gguf', loadedModelPath: 'c:/m/chat.gguf', loadedReady: true, preferChatFallback: true }).source, 'helper');
+  assert.equal(hm.resolveHelper({ helperModelPath: 'c:/m/small.gguf', loadedModelPath: 'c:/m/chat.gguf', loadedReady: true, preferChatFallback: true }).source, 'chat');
+  assert.equal(hm.resolveHelper({ helperModelPath: 'c:/m/small.gguf', loadedModelPath: 'c:/m/chat.gguf', loadedReady: true, preferChatFallback: false }).source, 'none');
+  assert.equal(hm.resolveHelper({ helperModelPath: '', loadedModelPath: '', loadedReady: false, preferChatFallback: true }).source, 'none');
 });
